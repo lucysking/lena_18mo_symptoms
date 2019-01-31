@@ -1,0 +1,698 @@
+---
+title: "Score 18-month questionnaires"
+output: html_notebook
+---
+
+First run script "demographics.rmd"
+
+```{r}
+#Libraries
+library(tidyverse)
+library(purrr)
+library(psych)
+library(GPArotation)
+
+#Parameters
+q_18month_file <- "~/Desktop/BABIES/r01_winter_2019/data/questionnaires_18mo_20181204.csv"
+```
+
+**Read in data**
+```{r}
+q_18month <-
+  read_csv(q_18month_file) %>% 
+  rename(ID = record_id) %>% 
+  mutate(ID = as.integer(ID)) %>% 
+  select(-redcap_event_name:-questionnaires_18mo_timestamp) %>% 
+  left_join(
+    demo %>% 
+      select(ID, male),
+    by = "ID"
+  )
+```
+
+# Score ITSEA
+
+##compute number of non-missing items for each subscale
+```{r}
+q_18month_scored <-
+  q_18month %>% 
+  group_by(ID) %>% 
+  mutate(
+    n_itsea_activity = sum(
+      !is.na(
+        c(
+          itsea_a2, 
+          itsea_a4, 
+          itsea_b8, 
+          itsea_b10, 
+          itsea_b27, 
+          itsea_b32
+        )
+      )
+    ),
+    n_itsea_agress = sum(
+      !is.na(
+        c(
+          itsea_a28, 
+          itsea_a30, 
+          itsea_a33, 
+          itsea_b3, 
+          itsea_b9, 
+          itsea_b16, 
+          itsea_b30, 
+          itsea_b34, 
+          itsea_b44, 
+          itsea_b88, 
+          itsea_c2, 
+          itsea_e4
+        )
+      )
+    ),
+    n_itsea_depp = sum(
+      !is.na(
+        c(
+          itsea_a9, 
+          itsea_a39, 
+          itsea_a40, 
+          itsea_b43, 
+          itsea_b76, 
+          itsea_b81, 
+          itsea_b84, 
+          itsea_b91, 
+          itsea_b92
+        )
+      )
+    ),
+    n_itsea_empath = sum(
+      !is.na(
+        c(
+          itsea_a22, 
+          itsea_b51, 
+          itsea_b56, 
+          itsea_b57, 
+          itsea_b63, 
+          itsea_b73, 
+          itsea_c4
+        )
+      )
+    ),
+    n_itsea_gad = sum(
+      !is.na(
+        c(
+          itsea_a3, 
+          itsea_a12, 
+          itsea_a35, 
+          itsea_b37, 
+          itsea_b70, 
+          itsea_b86, 
+          itsea_e5, 
+          itsea_e6, 
+          itsea_e11
+        )
+      )
+    ),
+    n_itsea_play = sum(
+      !is.na(
+        c(
+          itsea_a25, 
+          itsea_a31, 
+          itsea_b25, 
+          itsea_b38, 
+          itsea_b67, 
+          itsea_b71
+        )
+      )
+    ),
+    n_itsea_negemo = sum(
+      !is.na(
+        c(
+          itsea_a7, 
+          itsea_a21, 
+          itsea_a23, 
+          itsea_b31, 
+          itsea_b45, 
+          itsea_b50, 
+          itsea_b53, 
+          itsea_b59, 
+          itsea_b65, 
+          itsea_b66, 
+          itsea_b74, 
+          itsea_b80, 
+          itsea_b85
+        )
+      )
+    ),
+    n_itsea_social = sum(
+      !is.na(
+        c(
+          itsea_a10, 
+          itsea_a13, 
+          itsea_a15, 
+          itsea_b6, 
+          itsea_b19, 
+          itsea_b26, 
+          itsea_b28, 
+          itsea_b42, 
+          itsea_b60, 
+          itsea_b90
+        )
+      )
+    )
+  ) %>% 
+  ungroup()
+```
+
+## Calculate subscale scores
+```{r}
+q_18month_scored <-
+  q_18month_scored %>% 
+  mutate_at(
+    vars(
+      itsea_b43, itsea_b65
+    ),
+    funs(
+      . %>%
+        recode(
+          "0" = 2, 
+          "1" = 1, 
+          "2" = 0
+        )
+    )
+  ) %>% 
+  group_by(ID) %>% 
+  mutate(
+    itsea_activity = sum(
+      c(
+        itsea_a2, 
+        itsea_a4, 
+        itsea_b8, 
+        itsea_b10, 
+        itsea_b27, 
+        itsea_b32
+      ), na.rm = TRUE
+    ) / n_itsea_activity,
+    itsea_activity = if_else(
+      n_itsea_activity < 5, 
+      NA_real_, itsea_activity
+    ),
+    itsea_agress = sum(
+      c(
+        itsea_a28, 
+        itsea_a30, 
+        itsea_a33, 
+        itsea_b3, 
+        itsea_b9, 
+        itsea_b16, 
+        itsea_b30, 
+        itsea_b34, 
+        itsea_b44, 
+        itsea_b88, 
+        itsea_c2, 
+        itsea_e4
+      ),
+      na.rm = TRUE
+    ) / n_itsea_agress,
+    itsea_agress = if_else(
+      n_itsea_agress < 10,
+      NA_real_, itsea_agress
+    ),
+    itsea_depp = sum(
+      c(
+        itsea_a9, 
+        itsea_a39, 
+        itsea_a40, 
+        itsea_b43, 
+        itsea_b76, 
+        itsea_b81, 
+        itsea_b84, 
+        itsea_b91, 
+        itsea_b92
+      ), na.rm = TRUE
+    ) / n_itsea_depp,
+    itsea_depp = if_else(
+      n_itsea_depp < 7,
+      NA_real_, itsea_depp
+    ),
+    itsea_empath = sum(
+      c(
+        itsea_a22, 
+        itsea_b51, 
+        itsea_b56, 
+        itsea_b57, 
+        itsea_b63, 
+        itsea_b73, 
+        itsea_c4
+      ),
+      na.rm = TRUE
+    ) / n_itsea_empath,
+    itsea_empath = if_else(
+      n_itsea_empath < 6,
+      NA_real_, itsea_empath
+    ),
+    itsea_gad = sum(
+      c(
+        itsea_a3, 
+        itsea_a12, 
+        itsea_a35, 
+        itsea_b37, 
+        itsea_b70, 
+        itsea_b86, 
+        itsea_e5, 
+        itsea_e6, 
+        itsea_e11
+      ),
+      na.rm = TRUE
+    ) / n_itsea_gad,
+    itsea_gad = if_else(
+      n_itsea_gad < 8, 
+      NA_real_, itsea_gad
+    ),
+    itsea_play = sum(
+      c(
+        itsea_a25, 
+        itsea_a31, 
+        itsea_b25, 
+        itsea_b38, 
+        itsea_b67, 
+        itsea_b71
+      ),
+      na.rm = TRUE
+    ) / n_itsea_play,
+    itsea_play = if_else(
+      n_itsea_play < 5,
+      NA_real_, itsea_play
+    ),
+    itsea_negemo = sum(
+      c(
+        itsea_a7, 
+        itsea_a21, 
+        itsea_a23, 
+        itsea_b31, 
+        itsea_b45, 
+        itsea_b50, 
+        itsea_b53, 
+        itsea_b59, 
+        itsea_b65, 
+        itsea_b66, 
+        itsea_b74, 
+        itsea_b80, 
+        itsea_b85
+      ),
+      na.rm = TRUE
+    ) / n_itsea_negemo,
+    itsea_negemo = if_else(
+      n_itsea_negemo < 10,
+      NA_real_, itsea_negemo
+    ),
+    itsea_social = sum(
+      c(
+        itsea_a10, 
+        itsea_a13, 
+        itsea_a15, 
+        itsea_b6, 
+        itsea_b19, 
+        itsea_b26, 
+        itsea_b28, 
+        itsea_b42, 
+        itsea_b60, 
+        itsea_b90
+      ),
+      na.rm = TRUE
+    ) / n_itsea_social,
+    itsea_social = if_else(
+      n_itsea_social < 8, 
+      NA_real_, itsea_social
+    ),
+    itsea_extern = sum(
+      c(
+      itsea_activity,
+      itsea_agress
+      ) / 2 
+    ),
+    itsea_extern = if_else(
+      is.na(itsea_activity) | is.na(itsea_agress),
+      NA_real_, itsea_extern
+    ),
+    itsea_intern = sum(
+      c(
+        itsea_depp,
+        itsea_gad
+      )
+    ) / 2,
+    itsea_intern = if_else(
+      is.na(itsea_depp) | is.na(itsea_gad),
+      NA_real_, itsea_intern
+    )
+  ) %>% 
+  ungroup()
+```
+
+## calculate cut scores
+```{r}
+q_18month_scored <-
+  q_18month_scored %>% 
+  group_by(ID) %>% 
+  mutate(
+    activity_concern = case_when(
+      male == 1 & itsea_activity >= 1.42 ~ "concern",
+      male == 0 & itsea_activity >= 1.28 ~ "concern",
+      TRUE ~ "none"
+    ),
+    agress_concern = case_when(
+      male == 1 & itsea_agress >= .87 ~ "concern",
+      male == 0 & itsea_agress >= .81 ~ "concern",
+      TRUE ~ "none"
+    ),
+    depp_concern = case_when(
+      male == 1 & itsea_depp >= .36 ~ "concern",
+      male == 0 & itsea_depp >= .34 ~ "concern",
+      TRUE ~ "none"
+    ),
+    gad_concern = case_when(
+      male == 1 & itsea_gad >= .55 ~ "concern",
+      male == 0 & itsea_gad >= .44 ~ "concern",
+      TRUE ~ "none"
+    ),
+    negemo_concern = case_when(
+      male == 1 & itsea_negemo >= .91 ~ "concern",
+      male == 0 & itsea_negemo >= 1.01 ~ "concern",
+      TRUE ~ "none"
+    ),
+    play_concern = case_when(
+      male == 1 & itsea_play <= .96 ~ "concern",
+      male == 0 & itsea_play <= 1.07 ~ "concern",
+      TRUE ~ "none"
+    ),
+    empathy_concern = case_when(
+      male == 1 & itsea_empath <= .32 ~ "concern",
+      male == 0 & itsea_empath <= .51 ~ "concern",
+      TRUE ~ "none"
+    ),
+    social_concern = case_when(
+      male == 1 & itsea_social <= 1.38 ~ "concern",
+      male == 0 & itsea_social <= 1.35 ~ "concern",
+      TRUE ~ "none"
+    ),
+    itsea_concern = if_else(
+      activity_concern == "concern" | agress_concern == "concern" |
+        depp_concern == "concern" | gad_concern == "concern" |
+        negemo_concern == "concern" | play_concern == "concern" |
+        empathy_concern == "concern" | social_concern == "concern",
+      "concern", "none"
+    ),
+    itsea_concern_ied = if_else(
+      activity_concern == "concern" | agress_concern == "concern" |
+        depp_concern == "concern" | gad_concern == "concern" |
+        negemo_concern == "concern",
+      "concern", "none"
+    )
+  ) %>% 
+  ungroup()
+```
+
+
+**Score the ECSA**
+```{r}
+q_18month_scored <-
+  q_18month_scored %>% 
+  group_by(ID) %>% 
+  mutate(
+    ecsa_total = mean(
+      c(
+        ecsa_1, 
+        ecsa_2, 
+        ecsa_3, 
+        ecsa_4, 
+        ecsa_5, 
+        ecsa_6, 
+        ecsa_7, 
+        ecsa_8, 
+        ecsa_9, 
+        ecsa_10, 
+        ecsa_11, 
+        ecsa_12, 
+        ecsa_13, 
+        ecsa_14, 
+        ecsa_15, 
+        ecsa_16, 
+        ecsa_17, 
+        ecsa_18, 
+        ecsa_19, 
+        ecsa_20, 
+        ecsa_21, 
+        ecsa_22, 
+        ecsa_23, 
+        ecsa_24, 
+        ecsa_25, 
+        ecsa_26, 
+        ecsa_27, 
+        ecsa_28, 
+        ecsa_29, 
+        ecsa_30, 
+        ecsa_31, 
+        ecsa_32, 
+        ecsa_33, 
+        ecsa_34, 
+        ecsa_35, 
+        ecsa_36
+      ),
+      na.rm = TRUE
+    ) * 36
+  ) %>% 
+  ungroup()
+```
+
+```{r}
+q_18month_scored %>% 
+  count(activity_concern)
+
+q_18month_scored %>% 
+  count(agress_concern)
+
+q_18month_scored %>% 
+  count(depp_concern)
+
+q_18month_scored %>% 
+  count(gad_concern)
+
+q_18month_scored %>% 
+  count(negemo_concern)
+
+q_18month_scored %>% 
+  count(empathy_concern)
+
+q_18month_scored %>% 
+  count(social_concern)
+
+q_18month_scored %>% 
+  count(play_concern)
+
+q_18month_scored %>% 
+  count(itsea_concern) %>% 
+  mutate(prop = n / sum(n))
+
+q_18month_scored %>% 
+  count(itsea_concern_ied) %>% 
+  mutate(prop = n / sum(n))
+```
+
+
+```{r}
+q_18month_scored %>% 
+  select(itsea_activity:itsea_social) %>% 
+  gather(itsea_subscale, score, itsea_activity:itsea_social) %>% 
+  ggplot(aes(score, color = itsea_subscale)) +
+  geom_freqpoly(bins = 5, size = 2, alpha = 1/2) +
+  theme_minimal()
+
+q_18month_scored %>% 
+  select(itsea_activity:itsea_social) %>% 
+  gather(itsea_subscale, score, itsea_activity:itsea_social) %>% 
+  ggplot(aes(score)) +
+  geom_histogram(bins = 12) +
+  theme_minimal() +
+  facet_wrap(.~itsea_subscale)
+
+
+```
+
+```{r}
+q_18month_scored %>% 
+  ggplot(aes(ecsa_total)) +
+  geom_histogram(bins = 20) +
+  geom_vline(xintercept = 18, color = "red") +
+  scale_y_continuous(breaks = seq.int(0, 10, 1)) +
+  theme_minimal()
+
+q_18month_scored %>% 
+  count(ecsa_total >= 18) %>% 
+  mutate(
+    per = n / sum(n)
+  )
+```
+
+# ITSEA EFA
+```{r}
+itsea_subscales <- 
+  q_18month_scored %>% 
+  arrange(ID) %>% 
+  select( 
+    itsea_activity:itsea_social
+    ) %>% 
+  na.omit()
+
+itsea_sub_corr <-
+  cor(itsea_subscales)
+
+VSS.scree(itsea_subscales)
+
+itsea_fa2 <- fa(
+  itsea_sub_corr, 
+  nfactors = 2, 
+  rotate = "oblimin",
+  scores = "tenBerge",
+  impute = "median"
+  )
+itsea_fa2
+itsea_fa2$Vaccounted
+
+itsea_fa3 <- fa(
+  itsea_sub_corr, 
+  nfactors = 3, 
+  rotate = "oblimin", #allows factors to be correlated
+  scores = "tenBerge", #allows scores to be correlated
+  impute = "median"
+  )
+itsea_fa3
+itsea_fa3$Vaccounted
+```
+Retaining 2 factors given eigen value given third factor explained small amount of variance and eigen value < 1. 
+
+Factor 1 explains 24% of the variance and is basically "symptoms" or "bad stuff".
+Factor 2 explains 20% of the variance and is basically "competence" or "good stuff".
+
+## Extract factor scores
+```{r}
+itsea_fascores_calc <-
+  factor.scores(
+    itsea_subscales, 
+    itsea_fa2, 
+    method = "tenBerge", 
+    impute = "median"
+  ) 
+
+itsea_fascores_pull <-
+  itsea_fascores_calc$scores %>% 
+  as_tibble() %>% 
+  rownames_to_column("index")
+
+itsea_fascores <-
+  q_18month_scored %>% 
+  arrange(ID) %>% 
+  select(
+    ID,
+    itsea_activity:itsea_social
+  ) %>% 
+  rownames_to_column("index")
+
+itsea_fascores <-
+  itsea_fascores %>% 
+  left_join(itsea_fascores_pull, by = "index") %>% 
+  select(-index) %>% 
+  rename(
+    itsea_f1_symptoms = MR1,
+    itsea_f2_competence = MR2
+  )
+```
+
+```{r}
+q18month_symp <-
+  q_18month_scored %>% 
+  select(
+    ID, 
+    itsea_activity:itsea_intern,
+    itsea_concern,
+    ecsa_total
+  ) %>% 
+  left_join(
+    itsea_fascores %>% 
+      select(
+        ID,
+        itsea_f1_symptoms,
+        itsea_f2_competence
+      ),
+    by = "ID"
+  )
+
+```
+
+
+
+```{r}
+x <-
+  itsea_fascores %>% 
+  left_join(crisys_wf, by = "ID") %>% 
+  left_join(lscr_T1lg_6mocs, by = "ID") %>% 
+  left_join(lena_5min_cl_wf, by = "ID")
+glimpse(x)
+
+x %>% 
+  filter(!is.na(awc_prop_D1)) %>% 
+  ggplot(aes(sixmonth_crisys_win, itsea_f1_symptoms, color = awc_prop_D1 > median(awc_prop_D1, na.rm = TRUE))) +
+  geom_point(size = 6) +
+  geom_smooth(method = "lm", se = FALSE, size = 4) +
+  scale_x_continuous(breaks = seq.int(0, 15, 3)) +
+  #scale_y_continuous(breaks = seq.int(.19, .30, .01)) +
+  scale_color_manual(
+    labels = c("Lower dependability", "Higher dependability"),
+    values = c("#B42F32", "#494940")
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 34),
+    axis.title.y = element_text(size = 34),
+    axis.text = element_text(size = 26),
+    legend.text = element_text(size = 28),
+    legend.title = element_text(size = 20),
+    legend.position = "bottom"
+  ) +
+  labs(
+    color = "",
+    x = "Sustained threat: Life stress",
+    y = "18-month negative emotionality "
+  ) 
+
+ggsave("~/Desktop/BABIES/r01_winter_2019/plots/crisys_symp_awcprop.png", width = 9, height = 8)
+
+
+
+
+summary(lm(itsea_f1_symptoms ~ awc_prop_D1 * sixmonth_crisys_win, data = x))
+
+x %>% 
+  filter(!is.na(maltreated)) %>% 
+  ggplot(aes(sixmonth_crisys_win, itsea_f1_symptoms, color = maltreated)) +
+  geom_point(size = 6) +
+  geom_smooth(method = "lm", se = FALSE, size = 4) +
+  scale_x_continuous(breaks = seq.int(0, 15, 3)) +
+  #scale_y_continuous(breaks = seq.int(.19, .30, .01)) +
+  scale_color_discrete(
+    labels = c("Mother maltreated", "No maltreatment")
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 24),
+    axis.title.y = element_text(size = 24),
+    axis.text = element_text(size = 22)
+  ) +
+  labs(
+    color = NULL,
+    x = "Sustained threat: Life stress",
+    y = "18-month symptoms "
+  )
+
+ggsave("~/Desktop/BABIES/r01_winter_2019/plots/crisys_symp_maltr.png", width = 7, height = 6)
+
+t.test(x$awc_prop_D1 ~ x$maltreated)
+```
+

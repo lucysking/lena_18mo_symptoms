@@ -1,0 +1,362 @@
+---
+title: "Clean LENA Data"
+output: html_notebook
+---
+
+##Load data
+```{r load_data}
+library(tidyverse)
+library(lubridate)
+
+#daily files
+lena_daily_file_1 <- "~/Desktop/BABIES/r01_winter_2019/data/LENA Export (Daily) 20180316 154518.csv"
+lena_daily_file_2 <- "~/Desktop/BABIES/r01_winter_2019/data/LENA Export (Daily) 20181128 153328.csv"
+
+#5-minute files
+lena_5min_file_1 <- "~/Desktop/BABIES/r01_winter_2019/data/LENAExport_5Minute_20181220.csv"
+lena_5min_files_2 <- "~/Desktop/BABIES/r01_winter_2019/data/individual_5min"
+
+lena_5min_files_df <-
+  tibble(
+    path = 
+      list.files(
+        path = lena_5min_files_2,
+        all.files = TRUE,
+        #pattern = "^LENA Export (5 Minute) \\d{3}_\\d{6}.csv$",
+        no.. = TRUE,
+        full.names = TRUE
+      )
+  ) %>% 
+  filter(
+    str_detect(path, "/.DS_Store") == FALSE
+  )
+```
+# Daily data
+
+## Read in daily data 
+```{r}
+lena_daily <-
+  read_csv(lena_daily_file_1) %>% 
+  mutate(
+    Lastname = as.integer(Lastname),
+    Birthdate = as.character(Birthdate),
+    Timestamp = as.character(Timestamp),
+    SS_DevAge = as.character(SS_DevAge),
+    SS_StdScore = as.character(SS_StdScore)
+  ) %>% 
+  bind_rows(
+    read_csv(lena_daily_file_2) %>% 
+      mutate(
+        Lastname = as.integer(Lastname),
+        Birthdate = as.character(Birthdate),
+        Timestamp = as.character(Timestamp),
+        SS_DevAge = as.character(SS_DevAge),
+        SS_StdScore = as.character(SS_StdScore)
+      )
+  ) %>% 
+  select(
+    -Type,
+    -ChildKey,
+    -Id,
+    -Age,
+    ID = Lastname,
+    dob = Birthdate
+  ) %>% 
+  mutate(
+    ID = as.numeric(ID),
+    dob = parse_date(dob, format = "%m/%d/%y"),
+    Timestamp = parse_date(Timestamp, format = "%m/%d/%y"),
+    age = (dob %--% Timestamp) / months(1)
+  ) %>% 
+  select(
+    -dob
+  )
+```
+
+
+## Clean and wrangle daily data
+```{r clean}
+lena_daily <- 
+  lena_daily %>%
+  filter(!is.na(ProcessingFile)) %>% 
+  group_by(ID) %>% 
+  mutate(
+    duration = as.numeric(
+      as.duration(hms(Duration)),
+      "hours"
+    )
+  ) %>% 
+  filter(duration >= 8) %>% 
+  mutate(
+    day_type = wday(Timestamp),
+    day_type = ifelse(day_type == "1" | day_type == 7, "weekend", "weekday"),
+    TV.Pct = as.integer(str_replace(TV.Pct, "%", "")),
+    AWC_rate = AWC.Actual/duration,
+    CTC_rate = CTC.Actual/duration,
+    CVC_rate = CVC.Actual/duration
+  ) %>%
+  ungroup() %>% 
+  select(
+    ID,
+    age,
+    timestamp = Timestamp,
+    day_type,
+    duration,
+    AWC_rate,
+    CTC_rate,
+    CVC_rate,
+    TV.Pct
+  ) 
+```
+
+```{r}
+lena_daily_cl <- 
+  lena_daily %>% 
+  filter(age >= 5 & age <= 8) %>% 
+  arrange(ID, timestamp) %>% 
+  group_by(ID) %>% 
+  mutate(
+    day = 1:n()
+  ) %>% 
+  ungroup()
+```
+
+```{r}
+lena_daily_cl %>% 
+  count(day)
+
+lena_daily_day1_rename <-
+  lena_daily_cl %>% 
+  filter(day == 1) %>% 
+  rename_at(
+    vars(timestamp, TV.Pct, AWC_rate, CTC_rate, CVC_rate, duration),
+    funs(paste0(., "_D1"))
+  ) %>% 
+  select(-day)
+
+lena_daily_day2_rename <-
+  lena_daily_cl %>% 
+  filter(day == 2) %>% 
+  rename_at(
+    vars(timestamp, TV.Pct, AWC_rate, CTC_rate, CVC_rate, duration),
+    funs(paste0(., "_D2"))
+  ) %>% 
+  select(-day)
+
+lena_daily_cl_wf <-
+  lena_daily_day1_rename %>% 
+  left_join(lena_daily_day2_rename, by = "ID")
+
+cor.test(lena_daily_cl_wf$CTC_rate_D1, lena_daily_cl_wf$CTC_rate_D2)
+```
+
+# Read in 5-minute data 
+```{r warning=FALSE}
+lena_5min <-
+  read_csv(lena_5min_file_1) %>% 
+  mutate(
+    Birthdate = as.character(Birthdate),
+    Timestamp = as.character(Timestamp)
+  ) %>% 
+  select(
+    -Type,
+    -ChildKey,
+    -Id,
+    -Age,
+    -AVA_StdScore:-AVA_AvgScore_Pct,
+    -Firstname,
+    ID = Lastname,
+    dob = Birthdate
+  ) %>% 
+  separate(Timestamp, into = c("date_record", "time_record"), sep = " ") %>% 
+  mutate(
+    ID = as.numeric(ID),
+    dob = parse_date_time(dob, c("ymd", "mdy")),
+    date_record = parse_date_time(date_record, c("ymd", "mdy")),
+    age = (dob %--% date_record) / months(1)
+  ) %>% 
+  select(
+    -dob
+  )
+```
+
+```{r warning=FALSE}
+lena_5min2 <-
+  lena_5min_files_df %>%
+  mutate(
+    data = map(
+      path, 
+      read_csv, 
+      col_names = TRUE,
+      col_types = 
+        list(
+          Firstname = col_character(),
+          Birthdate = col_character(),
+          Timestamp = col_character(),
+          Sex = col_character(),
+          ChildKey = col_character()
+        )
+      )
+  ) %>% 
+  unnest(data) %>% 
+  select(-path) %>% 
+  mutate(
+    Birthdate = as.character(Birthdate),
+    Timestamp = as.character(Timestamp)
+  ) %>% 
+  select(
+    -Type,
+    -ChildKey,
+    -Id,
+    -Age,
+    -AVA_StdScore:-AVA_AvgScore_Pct,
+    ID1 = Firstname,
+    ID2 = Lastname,
+    dob = Birthdate
+  ) %>% 
+  separate(Timestamp, into = c("date_record", "time_record"), sep = " ") %>% 
+  mutate(
+    ID = as.numeric(
+      if_else(
+        is.na(ID2),
+        ID1, ID2
+      )
+    ),
+    dob = parse_date_time(dob, c("ymd", "mdy")),
+    date_record = parse_date_time(date_record, c("ymd", "mdy")),
+    age = (dob %--% date_record) / months(1)
+  ) %>% 
+  select(
+    ID,
+    everything(),
+    -ID1,
+    -ID2,
+    -dob
+  )
+```
+
+```{r}
+lena_5min <-
+  lena_5min %>% 
+  bind_rows(lena_5min2)
+```
+
+## Clean and wrangle 5-minute data
+```{r}
+lena_5min_cl <- 
+  lena_5min %>% 
+  group_by(ID) %>% 
+  mutate(
+    duration = as.numeric(
+      as.duration(hms(Duration)),
+      "hours"
+    )
+  ) %>% 
+  group_by(ID, date_record, age) %>% 
+  summarise(
+    duration = sum(duration),
+    awc_speech = sum(AWC.Actual >= 1),
+    ctc_speech = sum(CVC.Actual >= 1)
+  ) %>% 
+  mutate(
+    awc_prop = (awc_speech) / ((duration * 60) / 5), #proportion of 5 minute segments with AWC
+    ctc_prop = (ctc_speech) / ((duration * 60) / 5) #proportion of 5 minute segments with CTC 
+  ) %>% 
+  filter(
+    (age >= 5 & age <= 8),
+    duration >= 8
+  ) %>% 
+  group_by(ID) %>% 
+  mutate(
+    day = 1:n()
+  ) %>% 
+  ungroup()
+```
+
+```{r}
+lena_5min_cl %>% 
+  count(day)
+
+lena_5min_day1_rename <-
+  lena_5min_cl %>% 
+  filter(day == 1) %>% 
+  rename_at(
+    vars(date_record:ctc_prop),
+    funs(paste0(., "_D1"))
+  ) %>% 
+  select(-day)
+
+lena_5min_day2_rename <-
+  lena_5min_cl %>% 
+  filter(day == 2) %>% 
+  rename_at(
+    vars(date_record:ctc_prop),
+    funs(paste0(., "_D2"))
+  ) %>% 
+  select(-day)
+
+lena_5min_cl_wf <-
+  lena_5min_day1_rename %>% 
+  left_join(lena_5min_day2_rename, by = "ID") 
+
+lena_5min_cl_wf %>% 
+  filter(awc_prop_D1 > .2) %>% 
+  ggplot(aes(awc_prop_D1, awc_prop_D2)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+```{r}
+lena_5min_cl_wf %>% 
+  summarise_at(
+    vars(awc_prop_D1, ctc_prop_D1),
+    funs(min, max, mean, sd), na.rm = TRUE
+  )
+```
+
+```{r}
+lena_mal <- 
+  lena_daily_cl_wf %>% 
+  left_join(lscr_T1lg_6mocs, by = "ID") %>% 
+  left_join(demo, by = "ID") %>% 
+  left_join(crisys_wf, by = "ID")
+
+
+t.test(sixmonth_crisys_win ~ maltreated, data = lena_mal)
+
+glimpse
+
+lena_mal %>% 
+  filter(!is.na(maltreated)) %>% 
+  group_by(maltreated) %>% 
+  summarise_at(
+    vars(AWC_rate_D1, AWC_rate_D2, CTC_rate_D1, CTC_rate_D2, CVC_rate_D1, CVC_rate_D2, age.x),
+    funs(mean, sd), na.rm = TRUE
+  )
+
+t.test(AWC_rate_D1 ~ male, data = lena_mal)
+t.test(CTC_rate_D1 ~ maltreated, data = lena_mal)
+
+sy
+
+lena_mal <- 
+  lena_5min_cl_wf %>% 
+  left_join(lscr_T1lg_6mocs, by = "ID")
+
+lena_mal %>% 
+  filter(!is.na(maltreated)) %>% 
+  group_by(maltreated) %>% 
+  summarise_at(
+    vars(awc_prop_D1, ctc_prop_D1),
+    funs(mean, sd), na.rm = TRUE
+  )
+
+t.test(awc_prop_D1 ~ maltreated, data = lena_mal)
+
+glimpse(lena_mal)
+
+
+glimpse(lena_mal)
+```
+
+
