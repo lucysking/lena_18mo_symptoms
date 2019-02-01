@@ -1,0 +1,46 @@
+---
+title: "long_t1t2dates_combine"
+author: "Fran Querdasi"
+date: "2/1/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+##Parameters
+library(tidyverse)
+
+visit_date_long_t1_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_preg_20190131.csv"
+
+visit_date_long_t2_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_nb_20190131.csv"
+```
+
+```{r}
+##Read in and join data
+t1t2dates <-
+  read_csv(visit_date_long_t1_file) %>% 
+  select(
+    ID = record_id,
+    date_preg = demograph_date_preg
+  ) %>% 
+  mutate(
+    ID = as.integer(ID)
+    ) %>% 
+  left_join(
+    read_csv(visit_date_long_t2_file) %>% 
+      select(
+        ID = record_id,
+        date_newborn = demograph_date_preg
+      ) %>% 
+      mutate(
+        ID = as.integer(ID)
+      )
+  )
+    
+glimpse(t1t2dates)
+```
+
+```{r}
+##write csv
+write_csv(t1t2dates, "~/Desktop/lena_18mo_symptoms/Data/long_t1t2_dates_20190131.csv")
+```
+
