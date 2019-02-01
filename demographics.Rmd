@@ -1,0 +1,197 @@
+---
+title: "BABIES demographic data"
+author: "Lucy King"
+date: "11/27/2018"
+output: html_document
+---
+
+```{r}
+##Libraries
+library(tidyverse)
+library(lubridate)
+
+##Parameters
+demo_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/cs_demo_20181128.csv"
+demo_long_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_demo_20181128.csv"
+
+dob_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/cs_dob_20181128.csv"
+dob_long_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_dob_20181128.csv"
+
+visit_date_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/cs_visit_date_20181128.csv"
+visit_date_long_6mo_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_6mo_visit_date_20181128.csv"
+visit_dates_long_t1t2_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_t1t2_dates_20181128.csv"
+
+```
+
+```{r}
+##Read in and join data 
+dates <-
+  read_csv(dob_cs_file) %>% 
+  select(
+    ID = record_id,
+    mom_dob,
+    baby_dob,
+    baby_due_date,
+    baby_sex
+  ) %>% 
+  mutate(
+    ID = as.integer(ID)
+  ) %>% 
+  bind_rows(
+    read_csv(dob_long_file) %>% 
+      select(
+        ID = record_id,
+        mom_dob,
+        baby_dob,
+        baby_due_date
+      ) %>% 
+      mutate(
+        ID = as.integer(ID)
+      )
+  ) %>% 
+  left_join(
+    read_csv(visit_date_cs_file) %>% 
+      rename(ID = record_id) %>% 
+      mutate(ID = as.integer(ID)) %>% 
+      bind_rows(
+        read_csv(visit_date_long_6mo_file) %>% 
+          rename(ID = record_id) %>% 
+          mutate(ID = as.integer(ID))
+      )
+  ) %>% 
+  left_join(
+    read_csv(visit_dates_long_t1t2_file) %>% 
+      mutate(ID = as.integer(ID)),
+    by = "ID"
+  ) %>% 
+  rename(
+    visit_date_6mo = crf_date 
+  ) %>% 
+  mutate(
+    mom_dob = parse_date(mom_dob, format = "%m/%d/%y"),
+    baby_dob = parse_date(baby_dob, format = "%m/%d/%y"),
+    visit_date_6mo = parse_date(visit_date_6mo, format = "%m/%d/%y"),
+    date_preg = parse_date(date_preg, format = "%m/%d/%y"),
+    baby_due_date = parse_date(baby_due_date, format = "%m/%d/%y"),
+    date_newborn = parse_date(date_newborn, format = "%m/%d/%y"),
+    baby_conception_date = baby_due_date - weeks(40),
+    mom_age_6mo_visit = (mom_dob %--% visit_date_6mo) / years(1),
+    baby_age_6mo_vsit = (baby_dob %--% visit_date_6mo) / months(1),
+    mom_age_conception = (mom_dob %--% baby_conception_date) / years(1),
+    mom_age_preg_visit = (mom_dob %--% date_preg) / years(1),
+    mom_age_newborn_visit = (mom_dob %--% date_newborn) / years(1),
+    mom_age_babydob = (mom_dob %--% baby_dob) / years(1),
+    baby_age_newborn_visit = (baby_dob %--% date_newborn) / months(1)
+  )
+```
+
+```{r}
+demo <-
+  read_csv(demo_cs_file) %>% 
+  select(
+    ID = record_id,
+    mom_ethnicity, 
+    mom_race,
+    momrace_describe,
+    education,
+    educ_describe,
+    marital_status,
+    marital_explain,
+    annual_income,
+    ppl_in_home_adults,
+    ppl_in_home_allchild
+  ) %>% 
+  mutate(
+    ID = as.integer(ID),
+    ppl_in_home = ppl_in_home_adults + ppl_in_home_allchild
+  ) %>% 
+  bind_rows(
+    read_csv(demo_long_file) %>% 
+      select(
+        ID = record_id,
+        mom_ethnicity, 
+        mom_race,
+        momrace_describe,
+        education,
+        educ_describe,
+        marital_status,
+        marital_explain,
+        annual_income,
+        ppl_in_home_adults,
+        ppl_in_home_allchild,
+        baby_sex
+      ) %>% 
+      mutate(
+        ID = as.integer(ID)
+      ) 
+  ) %>% 
+  left_join(
+    read_csv(dob_cs_file) %>% 
+        select(
+          ID = record_id,
+          baby_sex_cs = baby_sex
+        ) %>% 
+        mutate(ID = as.integer(ID)),
+      by = "ID"
+  ) %>% 
+  mutate(
+    household_income = as.character(annual_income),
+    household_income_numeric = as.numeric(
+      recode(
+        annual_income,
+        "1" = "2500",
+        "2" = "10000",
+        "3" = "22500",
+        "4" = "45000",
+        "5" = "75000",
+        "6" = "120000",
+        "7" = "150000"
+      )
+    ),
+    #santa clara country low-income limit : 80% of median income (ratios <= 1 are therefore "low income")
+    #https://www.huduser.gov/portal/datasets/il/il2017/2017summary.odn
+    SC_lowincome_limit = as.numeric(
+      recode(
+        ppl_in_home,
+        "1" = "59350",
+        "2" = "67800",
+        "3" = "76300", 
+        "4" = "84750",
+        "5" = "91500",
+        "6" = "98350",
+        "7" = "105100",
+        "8" = "111900",
+        .default = "111900"
+      )
+    ),
+    income_needs = household_income_numeric / SC_lowincome_limit
+  )  %>% 
+  left_join(
+    dates %>% 
+      select(ID, contains("age")),
+    by = "ID"
+  ) %>% 
+  mutate(
+    baby_sex = if_else(
+      is.na(baby_sex),
+      baby_sex_cs, baby_sex
+    ),
+    male = if_else(
+      baby_sex == 2,
+      1, 0 
+    )
+  ) %>% 
+  select(
+    -baby_sex
+  ) %>% 
+  filter(!is.na(ID)) 
+
+write_csv(demo, "~/Desktop/BABIES/data/demographics_20181203.csv")
+
+```
+
+
+
+  
+    
+
