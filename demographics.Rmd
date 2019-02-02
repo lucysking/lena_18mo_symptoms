@@ -62,14 +62,15 @@ dates <-
   ) %>% 
   left_join(
     read_csv(visit_date_cs_file) %>% 
+      select(
+        record_id,
+        crf_date
+      ) %>% 
       rename(ID = record_id) %>% 
       mutate(ID = as.integer(ID)) %>% 
       bind_rows(
         read_csv(visit_date_long_6mo_file) %>%
-          select(
-            crf_date, 
-            ID = record_ID
-          ) %>% 
+          rename(ID = record_id) %>% 
           mutate(ID = as.integer(ID))
       )
   ) %>% 
@@ -120,7 +121,7 @@ demo <-
     ppl_in_home = ppl_in_home_adults + ppl_in_home_allchild
   ) %>% 
   bind_rows(
-    read_csv(demo_long_file) %>% 
+    read_csv(demo_mom_long_file) %>% 
       select(
         ID = record_id,
         mom_ethnicity, 
@@ -132,12 +133,21 @@ demo <-
         marital_explain,
         annual_income,
         ppl_in_home_adults,
-        ppl_in_home_allchild,
-        baby_sex
+        ppl_in_home_allchild
       ) %>% 
       mutate(
         ID = as.integer(ID)
-      ) 
+      ) %>%
+      left_join(
+       read_csv(demo_baby_long_file) %>% 
+        select(
+          ID = record_id,
+          baby_sex
+        ) %>% 
+        mutate(
+          ID = as.integer(ID)
+        )  
+      )
   ) %>% 
   left_join(
     read_csv(dob_cs_file) %>% 
@@ -200,7 +210,7 @@ demo <-
   ) %>% 
   filter(!is.na(ID)) 
 
-write_csv(demo, "~/Desktop/BABIES/data/demographics_20181203.csv")
+write_csv(demo, "~/Desktop/lena_18mo_symptoms/Data/demographics_20190131.csv")
 
 ```
 
