@@ -9,6 +9,7 @@ output: html_document
 ##Libraries
 library(tidyverse)
 library(lubridate)
+library(readr)
 
 ##Parameters
 #demo_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/cs_demo_20181128.csv"
@@ -70,12 +71,16 @@ dates <-
       mutate(ID = as.integer(ID)) %>% 
       bind_rows(
         read_csv(visit_date_long_6mo_file) %>%
+          select(
+            record_id,
+            crf_date
+          ) %>% 
           rename(ID = record_id) %>% 
           mutate(ID = as.integer(ID))
       )
   ) %>% 
   left_join(
-    read_csv(visit_dates_long_t1t2_file) %>% 
+    read_csv(visit_dates_long_t1t2_file) %>%
       mutate(ID = as.integer(ID)),
     by = "ID"
   ) %>% 
@@ -208,7 +213,11 @@ demo <-
   select(
     -baby_sex
   ) %>% 
-  filter(!is.na(ID)) 
+  filter(!is.na(ID))
+
+demo <-
+  demo %>% 
+  filter(!is.na(mom_ethnicity))
 
 write_csv(demo, "~/Desktop/lena_18mo_symptoms/Data/demographics_20190131.csv")
 
