@@ -8,10 +8,17 @@ output: html_notebook
 library(tidyverse)
 
 #Paramaters
-crisys_preg_file <- "~/Desktop/BABIES/r01_winter_2019/data/crisys_preg_20181127.csv"
-crisys_nb_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/crisys_nb_20181127.csv"
-crisys_6mo_lg_file <- "~/Desktop/BABIES/r01_winter_2019/data/crisys_6mo_lg_20181127.csv" 
-crisys_6mo_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/crisys_6mo_cs_20181127.csv" 
+#crisys_preg_file <- "~/Desktop/BABIES/r01_winter_2019/data/crisys_preg_20181127.csv"
+crisys_preg_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_preg_20190202.csv"
+
+#crisys_nb_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/crisys_nb_20181127.csv"
+crisys_nb_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_nb_20190202.csv"
+
+#crisys_6mo_lg_file <- "~/Desktop/BABIES/r01_winter_2019/data/crisys_6mo_lg_20181127.csv" 
+crisys_6mo_lg_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_lg_20190202.csv"
+
+#crisys_6mo_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/crisys_6mo_cs_20181127.csv" 
+crisys_6mo_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_cs_20190202.csv"
 
 
 #Functions
@@ -130,9 +137,14 @@ crisys %>%
 
 ```
 
-
-
-
+```{r}
+crisys_6mo <-
+  crisys_wf %>% 
+    select(
+      ID,
+      crisys_total_6mo = sixmonth_crisys_total
+    )
+  
 crisys_6mo %>% 
   ggplot(aes(crisys_total_6mo)) +
   geom_histogram(bins = 20)
@@ -145,6 +157,8 @@ crisys_6mo %>%
   ggplot(aes(crisys_total_6mo_win)) +
   geom_histogram(bins = 20)
 
-#write_csv(crisys_6mo, "~/Desktop/BABIES/data/crisys_6mo_20180929.csv")
+write_csv(crisys_6mo, "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190202.csv")
+```
+
 ```
 

@@ -9,20 +9,30 @@ First run script "demographics.rmd"
 #Libraries
 library(tidyverse)
 library(purrr)
+install.packages("psych")
 library(psych)
+install.packages("GPArotation")
 library(GPArotation)
 
 #Parameters
-q_18month_file <- "~/Desktop/BABIES/r01_winter_2019/data/questionnaires_18mo_20181204.csv"
+#q_18month_file <- "~/Desktop/BABIES/r01_winter_2019/data/questionnaires_18mo_20181204.csv"
+q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/questionnaires_18mo_cs_20190202.csv"
+q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data/questionnaires_18mo_long_20190202.csv"
 ```
 
 **Read in data**
 ```{r}
 q_18month <-
-  read_csv(q_18month_file) %>% 
+  read_csv(q_18month_cs_file) %>% 
   rename(ID = record_id) %>% 
   mutate(ID = as.integer(ID)) %>% 
   select(-redcap_event_name:-questionnaires_18mo_timestamp) %>% 
+  bind_rows(
+    read_csv(q_18month_long_file) %>% 
+      rename(ID = record_id) %>% 
+      mutate(ID = as.integer(ID)) %>%
+      select(-redcap_event_name:-month_survey_timestamp) 
+  ) %>% 
   left_join(
     demo %>% 
       select(ID, male),
