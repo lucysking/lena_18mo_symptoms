@@ -356,6 +356,33 @@ q_18month_scored <-
   ) %>% 
   ungroup()
 ```
+```{r}
+##Calcuate factor scores
+#psychopathology = sum(itsea_intern, extern, negemo)
+#competence = sum(compliance?, attention?, motivation?, play, empath, social)
+
+q_18month_scored <-
+  q_18month_scored %>% 
+  mutate(
+    itsea_symptoms = sum(
+      c(
+        itsea_intern,
+        itsea_extern,
+        itsea_negemo
+        )/3
+      ),
+    itsea_competence = sum(
+      c(
+        itsea_play,
+        itsea_empath,
+        itsea_social
+      )/3
+    )
+  )
+  
+      
+
+```
 
 ## calculate cut scores
 ```{r}
