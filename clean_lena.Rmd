@@ -9,12 +9,22 @@ library(tidyverse)
 library(lubridate)
 
 #daily files
-lena_daily_file_1 <- "~/Desktop/BABIES/r01_winter_2019/data/LENA Export (Daily) 20180316 154518.csv"
-lena_daily_file_2 <- "~/Desktop/BABIES/r01_winter_2019/data/LENA Export (Daily) 20181128 153328.csv"
+#lena_daily_file_1 <- "~/Desktop/BABIES/r01_winter_2019/data/LENA Export (Daily) 20180316 154518.csv"
+lena_daily_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENA Export (Daily) 20180316 154518_ALL.csv"
+
+#lena_daily_file_2 <- "~/Desktop/BABIES/r01_winter_2019/data/LENA Export (Daily) 20181128 153328.csv"
+lena_daily_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENA Export (Daily) 20181128 153328.csv"
+lena_daily_file_3 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_Daily_new_20190206.csv"
 
 #5-minute files
-lena_5min_file_1 <- "~/Desktop/BABIES/r01_winter_2019/data/LENAExport_5Minute_20181220.csv"
-lena_5min_files_2 <- "~/Desktop/BABIES/r01_winter_2019/data/individual_5min"
+#lena_5min_file_1 <- "~/Desktop/BABIES/r01_winter_2019/data/LENAExport_5Minute_20181220.csv"
+lena_5min_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_20181220.csv"
+lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_new_20190204.csv"
+
+
+#lena_5min_files_2 <- "~/Desktop/BABIES/r01_winter_2019/data/individual_5min"
+lena_5min_files_2 <- "~/Desktop/lena_18mo_symptoms/Data/individual_5min_lsk_format"
+
 
 lena_5min_files_df <-
   tibble(
@@ -35,6 +45,7 @@ lena_5min_files_df <-
 
 ## Read in daily data 
 ```{r}
+#do we care about AVA_AvgScore if only 1 ps has it, and SS_StdScore if that's a snapshot??
 lena_daily <-
   read_csv(lena_daily_file_1) %>% 
   mutate(
@@ -168,6 +179,33 @@ lena_5min <-
     ID = Lastname,
     dob = Birthdate
   ) %>% 
+  bind_rows(
+    read_csv(lena_5min_file_2) %>% 
+      mutate(
+        ExternalReferenceID = as.integer(ExternalReferenceID),
+        Recording_DOB = as.character(Recording_DOB),
+        StartTime = as.character(StartTime)
+        #SS_DevAge = as.character(SS_DevAge),
+        #SS_StdScore = as.character(SS_StdScore)
+      ) %>% 
+        select(
+          ID = ExternalReferenceID,
+          dob = Recording_DOB,
+          Timestamp = StartTime,
+          #Duration_Secs = Duration_Secs/60,
+          Meaningful,
+          Distant,
+          Noise,
+          Silence,
+          AWC_Actual = AWC_COUNT,
+          CTC_Actual = CT_COUNT,
+          CVC_Actual = CV_COUNT,
+          #TV = TV_Secs/60,
+          Sex = Recording_Gender
+      )
+  )
+
+%>% 
   separate(Timestamp, into = c("date_record", "time_record"), sep = " ") %>% 
   mutate(
     ID = as.numeric(ID),
