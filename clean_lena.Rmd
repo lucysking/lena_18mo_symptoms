@@ -10,7 +10,7 @@ library(lubridate)
 
 #daily files
 #lena_daily_file_1 <- "~/Desktop/BABIES/r01_winter_2019/data/LENA Export (Daily) 20180316 154518.csv"
-lena_daily_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENA Export (Daily) 20180316 154518_ALL.csv"
+lena_daily_FQ_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENA Export (Daily) 20180316 154518_ALL.csv"
 
 #lena_daily_file_2 <- "~/Desktop/BABIES/r01_winter_2019/data/LENA Export (Daily) 20181128 153328.csv"
 lena_daily_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENA Export (Daily) 20181128 153328.csv"
@@ -47,13 +47,14 @@ lena_5min_files_df <-
 ```{r}
 #do we care about AVA_AvgScore if only 1 ps has it, and SS_StdScore if that's a snapshot??
 lena_daily <-
-  read_csv(lena_daily_file_1) %>% 
+  read_csv(lena_daily_FQ_file_1) %>% 
   mutate(
     Lastname = as.integer(Lastname),
     Birthdate = as.character(Birthdate),
     Timestamp = as.character(Timestamp),
     SS_DevAge = as.character(SS_DevAge),
-    SS_StdScore = as.character(SS_StdScore)
+    SS_StdScore = as.character(SS_StdScore),
+    AVA_AvgScore = as.character(AVA_AvgScore)
   ) %>% 
   bind_rows(
     read_csv(lena_daily_file_2) %>% 
@@ -62,7 +63,8 @@ lena_daily <-
         Birthdate = as.character(Birthdate),
         Timestamp = as.character(Timestamp),
         SS_DevAge = as.character(SS_DevAge),
-        SS_StdScore = as.character(SS_StdScore)
+        SS_StdScore = as.character(SS_StdScore),
+        AVA_AvgScore = as.character(AVA_AvgScore)
       )
   ) %>% 
   select(

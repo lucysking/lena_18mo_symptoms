@@ -9,9 +9,9 @@ First run script "demographics.rmd"
 #Libraries
 library(tidyverse)
 library(purrr)
-install.packages("psych")
+#install.packages("psych")
 library(psych)
-install.packages("GPArotation")
+#install.packages("GPArotation")
 library(GPArotation)
 
 #Parameters
@@ -356,6 +356,7 @@ q_18month_scored <-
   ) %>% 
   ungroup()
 ```
+
 ```{r}
 ##Calcuate factor scores
 #psychopathology = sum(itsea_intern, extern, negemo)
@@ -364,19 +365,19 @@ q_18month_scored <-
 q_18month_scored <-
   q_18month_scored %>% 
   mutate(
-    itsea_symptoms = sum(
+    itsea_symptoms = mean(
       c(
         itsea_intern,
         itsea_extern,
         itsea_negemo
-        )/3
+        ), na.rm = TRUE
       ),
-    itsea_competence = sum(
+    itsea_competence = mean(
       c(
         itsea_play,
         itsea_empath,
         itsea_social
-      )/3
+      ), na.rm = TRUE
     )
   )
   
@@ -661,75 +662,5 @@ q18month_symp <-
     by = "ID"
   )
 
-```
-
-
-
-```{r}
-x <-
-  itsea_fascores %>% 
-  left_join(crisys_wf, by = "ID") %>% 
-  left_join(lscr_T1lg_6mocs, by = "ID") %>% 
-  left_join(lena_5min_cl_wf, by = "ID")
-glimpse(x)
-
-x %>% 
-  filter(!is.na(awc_prop_D1)) %>% 
-  ggplot(aes(sixmonth_crisys_win, itsea_f1_symptoms, color = awc_prop_D1 > median(awc_prop_D1, na.rm = TRUE))) +
-  geom_point(size = 6) +
-  geom_smooth(method = "lm", se = FALSE, size = 4) +
-  scale_x_continuous(breaks = seq.int(0, 15, 3)) +
-  #scale_y_continuous(breaks = seq.int(.19, .30, .01)) +
-  scale_color_manual(
-    labels = c("Lower dependability", "Higher dependability"),
-    values = c("#B42F32", "#494940")
-  ) +
-  theme_minimal() +
-  theme(
-    axis.title.x = element_text(size = 34),
-    axis.title.y = element_text(size = 34),
-    axis.text = element_text(size = 26),
-    legend.text = element_text(size = 28),
-    legend.title = element_text(size = 20),
-    legend.position = "bottom"
-  ) +
-  labs(
-    color = "",
-    x = "Sustained threat: Life stress",
-    y = "18-month negative emotionality "
-  ) 
-
-ggsave("~/Desktop/BABIES/r01_winter_2019/plots/crisys_symp_awcprop.png", width = 9, height = 8)
-
-
-
-
-summary(lm(itsea_f1_symptoms ~ awc_prop_D1 * sixmonth_crisys_win, data = x))
-
-x %>% 
-  filter(!is.na(maltreated)) %>% 
-  ggplot(aes(sixmonth_crisys_win, itsea_f1_symptoms, color = maltreated)) +
-  geom_point(size = 6) +
-  geom_smooth(method = "lm", se = FALSE, size = 4) +
-  scale_x_continuous(breaks = seq.int(0, 15, 3)) +
-  #scale_y_continuous(breaks = seq.int(.19, .30, .01)) +
-  scale_color_discrete(
-    labels = c("Mother maltreated", "No maltreatment")
-  ) +
-  theme_minimal() +
-  theme(
-    axis.title.x = element_text(size = 24),
-    axis.title.y = element_text(size = 24),
-    axis.text = element_text(size = 22)
-  ) +
-  labs(
-    color = NULL,
-    x = "Sustained threat: Life stress",
-    y = "18-month symptoms "
-  )
-
-ggsave("~/Desktop/BABIES/r01_winter_2019/plots/crisys_symp_maltr.png", width = 7, height = 6)
-
-t.test(x$awc_prop_D1 ~ x$maltreated)
 ```
 

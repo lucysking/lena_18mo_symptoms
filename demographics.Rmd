@@ -80,7 +80,8 @@ dates <-
       )
   ) %>% 
   left_join(
-    read_csv(visit_dates_long_t1t2_file) %>%
+    read_csv(
+      visit_dates_long_t1t2_file) %>%
       mutate(ID = as.integer(ID)),
     by = "ID"
   ) %>% 
@@ -88,7 +89,10 @@ dates <-
     visit_date_6mo = crf_date 
   ) %>% 
   mutate(
-    mom_dob = parse_date(mom_dob, format = "%m/%d/%y"),
+    mom_dob = parse_date(mom_dob, format = "%Y-%m-%d")
+  )
+#parse_date_time (look up help for examples-- include multiple formats)  
+    ,
     baby_dob = parse_date(baby_dob, format = "%m/%d/%y"),
     visit_date_6mo = parse_date(visit_date_6mo, format = "%m/%d/%y"),
     date_preg = parse_date(date_preg, format = "%m/%d/%y"),
@@ -103,6 +107,8 @@ dates <-
     mom_age_babydob = (mom_dob %--% baby_dob) / years(1),
     baby_age_newborn_visit = (baby_dob %--% date_newborn) / months(1)
   )
+
+glimpse(dates)
 ```
 
 ```{r}
