@@ -7,6 +7,7 @@ output: html_notebook
 ```{r load_data}
 library(tidyverse)
 library(lubridate)
+library(hms)
 
 #daily files
 #lena_daily_file_1 <- "~/Desktop/BABIES/r01_winter_2019/data/LENA Export (Daily) 20180316 154518.csv"
@@ -163,13 +164,66 @@ lena_daily_cl_wf <-
 cor.test(lena_daily_cl_wf$CTC_rate_D1, lena_daily_cl_wf$CTC_rate_D2)
 ```
 
+#reformat sp 5 min data
+```{r}
+lena_5min_sp <-
+  read_csv(lena_5min_file_2) %>% 
+      mutate(
+        ExternalReferenceID = as.integer(ExternalReferenceID),
+        Recording_DOB = as.character(Recording_DOB),
+        StartTime = as.character(StartTime)
+      ) %>% 
+        select(
+          ExternalReferenceID,
+          Recording_DOB,
+          StartTime,
+          Duration_Secs,
+          AWC_COUNT,
+          CT_COUNT,
+          CV_COUNT,
+          Recording_Gender,
+          Meaningful,
+          Distant, 
+          TV_Elec,
+          Overlap,
+          Noise,
+          Silence
+      ) %>% 
+       mutate(
+         ID = ExternalReferenceID,
+         dob = Recording_DOB,
+         AWC.Actual = AWC_COUNT,
+         CTC.Actual = CT_COUNT,
+         CVC.Actual = CV_COUNT,
+         Sex = Recording_Gender,
+         Duration = as.hms(Duration_Secs),
+         Meaningful = as.hms(Meaningful),
+         Distant = as.hms(Distant),
+         TV = as.hms(TV_Elec),
+         Overlap = as.hms(Overlap),
+         Noise = as.hms(Noise),
+         Silence = as.hms(Silence),
+         Timestamp = StartTime
+      ) %>% 
+      select(
+        -ExternalReferenceID,
+        -Recording_DOB,
+        -Recording_Gender,
+        -CT_COUNT,
+        -CV_COUNT,
+        -AWC_COUNT,
+        -Duration_Secs
+      )
+```
+
 # Read in 5-minute data 
 ```{r warning=FALSE}
 lena_5min <-
   read_csv(lena_5min_file_1) %>% 
   mutate(
     Birthdate = as.character(Birthdate),
-    Timestamp = as.character(Timestamp)
+    Timestamp = as.character(Timestamp),
+    Meaningful = as.hms(Meaningful),
   ) %>% 
   select(
     -Type,
@@ -182,32 +236,8 @@ lena_5min <-
     dob = Birthdate
   ) %>% 
   bind_rows(
-    read_csv(lena_5min_file_2) %>% 
-      mutate(
-        ExternalReferenceID = as.integer(ExternalReferenceID),
-        Recording_DOB = as.character(Recording_DOB),
-        StartTime = as.character(StartTime)
-        #SS_DevAge = as.character(SS_DevAge),
-        #SS_StdScore = as.character(SS_StdScore)
-      ) %>% 
-        select(
-          ID = ExternalReferenceID,
-          dob = Recording_DOB,
-          Timestamp = StartTime,
-          #Duration_Secs = Duration_Secs/60,
-          Meaningful,
-          Distant,
-          Noise,
-          Silence,
-          AWC_Actual = AWC_COUNT,
-          CTC_Actual = CT_COUNT,
-          CVC_Actual = CV_COUNT,
-          #TV = TV_Secs/60,
-          Sex = Recording_Gender
-      )
-  )
-
-%>% 
+    lena_5min_sp
+  ) %>% 
   separate(Timestamp, into = c("date_record", "time_record"), sep = " ") %>% 
   mutate(
     ID = as.numeric(ID),

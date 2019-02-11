@@ -89,15 +89,12 @@ dates <-
     visit_date_6mo = crf_date 
   ) %>% 
   mutate(
-    mom_dob = parse_date(mom_dob, format = "%Y-%m-%d")
-  )
-#parse_date_time (look up help for examples-- include multiple formats)  
-    ,
-    baby_dob = parse_date(baby_dob, format = "%m/%d/%y"),
-    visit_date_6mo = parse_date(visit_date_6mo, format = "%m/%d/%y"),
-    date_preg = parse_date(date_preg, format = "%m/%d/%y"),
-    baby_due_date = parse_date(baby_due_date, format = "%m/%d/%y"),
-    date_newborn = parse_date(date_newborn, format = "%m/%d/%y"),
+    mom_dob = parse_date(mom_dob, format = "%Y-%m-%d"),
+    baby_dob = parse_date(baby_dob, format = "%Y-%m-%d"),
+    visit_date_6mo = parse_date(visit_date_6mo, format = "%Y-%m-%d"),
+    date_preg = parse_date(date_preg, format = "%Y-%m-%d"),
+    baby_due_date = parse_date(baby_due_date, format = "%Y-%m-%d"),
+    date_newborn = parse_date(date_newborn, format = "%Y-%m-%d"),
     baby_conception_date = baby_due_date - weeks(40),
     mom_age_6mo_visit = (mom_dob %--% visit_date_6mo) / years(1),
     baby_age_6mo_vsit = (baby_dob %--% visit_date_6mo) / months(1),
@@ -109,6 +106,7 @@ dates <-
   )
 
 glimpse(dates)
+
 ```
 
 ```{r}
@@ -147,7 +145,8 @@ demo <-
         ppl_in_home_allchild
       ) %>% 
       mutate(
-        ID = as.integer(ID)
+        ID = as.integer(ID),
+        ppl_in_home = ppl_in_home_adults + ppl_in_home_allchild
       ) %>%
       left_join(
        read_csv(demo_baby_long_file) %>% 
