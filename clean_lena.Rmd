@@ -103,7 +103,7 @@ lena_daily <-
   filter(duration >= 8) %>% 
   mutate(
     day_type = wday(Timestamp),
-    day_type = ifelse(day_type == "1" | day_type == 7, "weekend", "weekday"),
+    day_type = if_else(day_type == 1 | day_type == 7, "weekend", "weekday"),
     TV.Pct = as.integer(str_replace(TV.Pct, "%", "")),
     AWC_rate = AWC.Actual/duration,
     CTC_rate = CTC.Actual/duration,
@@ -168,52 +168,52 @@ cor.test(lena_daily_cl_wf$CTC_rate_D1, lena_daily_cl_wf$CTC_rate_D2)
 ```{r}
 lena_5min_sp <-
   read_csv(lena_5min_file_2) %>% 
-      mutate(
-        ExternalReferenceID = as.integer(ExternalReferenceID),
-        Recording_DOB = as.character(Recording_DOB),
-        StartTime = as.character(StartTime)
-      ) %>% 
-        select(
-          ExternalReferenceID,
-          Recording_DOB,
-          StartTime,
-          Duration_Secs,
-          AWC_COUNT,
-          CT_COUNT,
-          CV_COUNT,
-          Recording_Gender,
-          Meaningful,
-          Distant, 
-          TV_Elec,
-          Overlap,
-          Noise,
-          Silence
-      ) %>% 
-       mutate(
-         ID = ExternalReferenceID,
-         dob = Recording_DOB,
-         AWC.Actual = AWC_COUNT,
-         CTC.Actual = CT_COUNT,
-         CVC.Actual = CV_COUNT,
-         Sex = Recording_Gender,
-         Duration = as.hms(Duration_Secs),
-         Meaningful = as.hms(Meaningful),
-         Distant = as.hms(Distant),
-         TV = as.hms(TV_Elec),
-         Overlap = as.hms(Overlap),
-         Noise = as.hms(Noise),
-         Silence = as.hms(Silence),
-         Timestamp = StartTime
-      ) %>% 
-      select(
-        -ExternalReferenceID,
-        -Recording_DOB,
-        -Recording_Gender,
-        -CT_COUNT,
-        -CV_COUNT,
-        -AWC_COUNT,
-        -Duration_Secs
-      )
+  mutate(
+    ExternalReferenceID = as.integer(ExternalReferenceID),
+    Recording_DOB = as.character(Recording_DOB),
+    StartTime = as.character(StartTime)
+  ) %>% 
+  select(
+    ExternalReferenceID,
+    Recording_DOB,
+    StartTime,
+    Duration_Secs,
+    AWC_COUNT,
+    CT_COUNT,
+    CV_COUNT,
+    Recording_Gender,
+    Meaningful,
+    Distant, 
+    TV_Elec,
+    Overlap,
+    Noise,
+    Silence
+  ) %>% 
+  mutate(
+    ID = ExternalReferenceID,
+    dob = Recording_DOB,
+    AWC.Actual = AWC_COUNT,
+    CTC.Actual = CT_COUNT,
+    CVC.Actual = CV_COUNT,
+    Sex = Recording_Gender,
+    Duration = as.hms(Duration_Secs),
+    Meaningful = as.hms(Meaningful),
+    Distant = as.hms(Distant),
+    TV = as.hms(TV_Elec),
+    Overlap = as.hms(Overlap),
+    Noise = as.hms(Noise),
+    Silence = as.hms(Silence),
+    Timestamp = StartTime
+  ) %>% 
+  select(
+    -ExternalReferenceID,
+    -Recording_DOB,
+    -Recording_Gender,
+    -CT_COUNT,
+    -CV_COUNT,
+    -AWC_COUNT,
+    -Duration_Secs
+  )
 ```
 
 # Read in 5-minute data 
@@ -223,7 +223,7 @@ lena_5min <-
   mutate(
     Birthdate = as.character(Birthdate),
     Timestamp = as.character(Timestamp),
-    Meaningful = as.hms(Meaningful),
+    Meaningful = as.hms(Meaningful)
   ) %>% 
   select(
     -Type,
@@ -263,6 +263,7 @@ lena_5min2 <-
           Firstname = col_character(),
           Birthdate = col_character(),
           Timestamp = col_character(),
+          AVA_StdScore = col_character(),
           Sex = col_character(),
           ChildKey = col_character()
         )
@@ -308,7 +309,8 @@ lena_5min2 <-
 ```{r}
 lena_5min <-
   lena_5min %>% 
-  bind_rows(lena_5min2)
+  bind_rows(lena_5min2) %>% 
+  arrange(ID)
 ```
 
 ## Clean and wrangle 5-minute data
@@ -318,7 +320,7 @@ lena_5min_cl <-
   group_by(ID) %>% 
   mutate(
     duration = as.numeric(
-      as.duration(hms(Duration)),
+      as.duration(hms(as.numeric(Duration))),
       "hours"
     )
   ) %>% 
@@ -374,6 +376,8 @@ lena_5min_cl_wf %>%
   ggplot(aes(awc_prop_D1, awc_prop_D2)) +
   geom_point() +
   geom_smooth(method = "lm")
+
+glimpse(lena_5min_cl_wf)
 ```
 
 ```{r}
