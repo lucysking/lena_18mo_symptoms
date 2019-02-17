@@ -26,6 +26,8 @@ lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_new_20
 #lena_5min_files_2 <- "~/Desktop/BABIES/r01_winter_2019/data/individual_5min"
 lena_5min_files_2 <- "~/Desktop/lena_18mo_symptoms/Data/individual_5min_lsk_format"
 
+lena_followup_long_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_long_20190216.csv"
+lena_followup_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_cs_20190216.csv"
 
 lena_5min_files_df <-
   tibble(
@@ -386,6 +388,27 @@ lena_5min_cl_wf %>%
     vars(awc_prop_D1, ctc_prop_D1),
     funs(min, max, mean, sd), na.rm = TRUE
   )
+```
+#read in LENA follow up data
+```{r}
+lena_followup <-
+  read_csv(lena_followup_long_file) %>% 
+  rename(ID = record_id) %>% 
+  mutate(ID = as.integer(ID)) %>% 
+  bind_rows(
+    read_csv(lena_followup_cs_file) %>% 
+      rename(ID = record_id) %>% 
+      mutate(ID = as.integer(ID))
+  ) %>% 
+  filter(
+    lena_day_1_followup_questions_complete == 2 | lena_day_2_followup_questions_complete == 2
+  ) %>% 
+  mutate(
+    lena_weekend = lena_daytype
+  )
+
+#t-test weekday vs. weekend and percent of time spent w mom
+t.test(percent_mother ~ lena_weekend, data = lena_followup)
 ```
 
 ```{r}
