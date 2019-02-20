@@ -80,8 +80,8 @@ lena_daily <-
   ) %>% 
   mutate(
     ID = as.numeric(ID),
-    dob = parse_date(dob, format = "%m/%d/%y"),
-    Timestamp = parse_date(Timestamp, format = "%m/%d/%y"),
+    dob = parse_date(dob, format = "%Y-%m-%d"),
+    Timestamp = parse_date(Timestamp, format = "%Y-%m-%d"),
     age = (dob %--% Timestamp) / months(1)
   ) %>% 
   select(
@@ -342,6 +342,8 @@ lena_5min_cl <-
   ) %>% 
   group_by(ID) %>% 
   mutate(
+    day_type = wday(date_record),
+    day_type = if_else(day_type == 1 | day_type == 7, "weekend", "weekday"),
     day = 1:n()
   ) %>% 
   ungroup()
@@ -355,7 +357,7 @@ lena_5min_day1_rename <-
   lena_5min_cl %>% 
   filter(day == 1) %>% 
   rename_at(
-    vars(date_record:ctc_prop),
+    vars(date_record:day_type),
     funs(paste0(., "_D1"))
   ) %>% 
   select(-day)
@@ -364,14 +366,20 @@ lena_5min_day2_rename <-
   lena_5min_cl %>% 
   filter(day == 2) %>% 
   rename_at(
-    vars(date_record:ctc_prop),
+    vars(date_record:day_type),
     funs(paste0(., "_D2"))
   ) %>% 
   select(-day)
 
 lena_5min_cl_wf <-
   lena_5min_day1_rename %>% 
-  left_join(lena_5min_day2_rename, by = "ID") 
+  left_join(lena_5min_day2_rename, by = "ID") %>% 
+  mutate(
+    #day_type_D1 = wday(date_record_D1),
+    #day_type_D1 = if_else(day_type_D1 == 1 | day_type_D1 == 7, "weekend", "weekday"),
+    #day_type_D2 = wday(date_record_D2),
+    #day_type_D2 = if_else(day_type_D2 == 1 | day_type_D2 == 7, "weekend", "weekday")
+  )
 
 lena_5min_cl_wf %>% 
   filter(awc_prop_D1 > .2) %>% 
