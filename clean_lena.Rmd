@@ -382,7 +382,10 @@ lena_5min_cl_wf <-
   )
 
 lena_5min_cl_wf %>% 
-  filter(awc_prop_D1 > .2) %>% 
+  filter(
+    awc_prop_D1 > .2,
+    awc_prop_D2 > .2
+    ) %>% 
   ggplot(aes(awc_prop_D1, awc_prop_D2)) +
   geom_point() +
   geom_smooth(method = "lm")
