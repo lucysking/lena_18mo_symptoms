@@ -330,6 +330,9 @@ lena_5min_cl <-
   summarise(
     duration = sum(duration),
     awc_speech = sum(AWC.Actual >= 1),
+    #awc_rate = awc_actual/duration
+    #ctc_rate = ctc_actual/duration
+    #cvw_rate
     ctc_speech = sum(CVC.Actual >= 1)
   ) %>% 
   mutate(
@@ -391,6 +394,24 @@ lena_5min_cl_wf %>%
   geom_smooth(method = "lm")
 
 glimpse(lena_5min_cl_wf)
+```
+##identifying weird recordings and what to do about them
+```{r}
+##count weekdays and weekends 
+lena_5min_cl_wf %>% 
+  count(day_type_D1)
+
+lena_5min_cl_wf %>% 
+  count(day_type_D2)
+
+lena_5min_cl_wf %>% 
+  filter(day_type_D2 == "weekend" | day_type_D1 == "weekend")
+
+#Conclusion: 54 with weekend recording, so need to covary for day type
+
+#duration in crowd vs. metrics of interest
+
+
 ```
 
 ```{r}

@@ -663,4 +663,17 @@ q18month_symp <-
   )
 
 ```
+#Score the ASQ
+```{r}
+#but higher score means knows less?
+#yes = 1, sometimes = 2, not yet = 3
+q_18month_scored$asq_comm <-
+  rowMeans(subset(q_18month_scored, select = c(asq_c1, asq_c2, asq_c3, asq_c4, asq_c5, asq_c6)), na.rm = T)*6
+  
+```
+#Score the MB CDI
+```{r}
+#1 sum score for expressive lang (mbcdi_1__2), another for receptive lang (mbcdi_1__1)
+#101 items
+```
 
