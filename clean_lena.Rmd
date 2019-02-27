@@ -11,7 +11,7 @@ library(hms)
 
 #daily files
 #lena_daily_file_1 <- "~/Desktop/BABIES/r01_winter_2019/data/LENA Export (Daily) 20180316 154518.csv"
-lena_daily_FQ_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENA Export (Daily) 20180316 154518_ALL.csv"
+lena_daily_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENA Export (Daily) 20180316 154518_ALL.csv"
 
 #lena_daily_file_2 <- "~/Desktop/BABIES/r01_winter_2019/data/LENA Export (Daily) 20181128 153328.csv"
 lena_daily_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENA Export (Daily) 20181128 153328.csv"
@@ -19,12 +19,12 @@ lena_daily_file_3 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_Daily_new_201
 
 #5-minute files
 #lena_5min_file_1 <- "~/Desktop/BABIES/r01_winter_2019/data/LENAExport_5Minute_20181220.csv"
-lena_5min_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_20181220.csv"
+lena_5min_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_20181220_cleaned.csv"
 lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_new_20190204.csv"
 
 
 #lena_5min_files_2 <- "~/Desktop/BABIES/r01_winter_2019/data/individual_5min"
-lena_5min_files_2 <- "~/Desktop/lena_18mo_symptoms/Data/individual_5min_lsk_format"
+lena_5min_files_2 <- "~/Desktop/lena_18mo_symptoms/Data/individual_5min_lsk_format_cleaned"
 
 lena_followup_long_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_long_20190216.csv"
 lena_followup_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_cs_20190216.csv"
@@ -50,7 +50,7 @@ lena_5min_files_df <-
 ```{r}
 #do we care about AVA_AvgScore if only 1 ps has it, and SS_StdScore if that's a snapshot??
 lena_daily <-
-  read_csv(lena_daily_FQ_file_1) %>% 
+  read_csv(lena_daily_file_1) %>% 
   mutate(
     Lastname = as.integer(Lastname),
     Birthdate = as.character(Birthdate),
@@ -266,6 +266,7 @@ lena_5min2 <-
           Birthdate = col_character(),
           Timestamp = col_character(),
           AVA_StdScore = col_character(),
+          Lastname = col_character(),
           Sex = col_character(),
           ChildKey = col_character()
         )
@@ -315,7 +316,7 @@ lena_5min <-
   arrange(ID)
 ```
 
-## Clean and wrangle 5-minute data
+## Clean and wrangle 5-minute data (generate prop and daily rate variables)
 ```{r}
 lena_5min_cl <- 
   lena_5min %>% 
@@ -330,12 +331,13 @@ lena_5min_cl <-
   summarise(
     duration = sum(duration),
     awc_speech = sum(AWC.Actual >= 1),
-    #awc_rate = awc_actual/duration
-    #ctc_rate = ctc_actual/duration
-    #cvw_rate
-    ctc_speech = sum(CVC.Actual >= 1)
+    ctc_speech = sum(CTC.Actual >= 1),
+    cvc_speech = sum(CVC.Actual >= 1)
   ) %>% 
   mutate(
+    awc_daily_rate = awc_speech/duration, #daily AWC rate
+    ctc_daily_rate = ctc_speech/duration, #daily CTC rate
+    cvc_daily_rate = cvc_speech/duration, #daily CVC rate
     awc_prop = (awc_speech) / ((duration * 60) / 5), #proportion of 5 minute segments with AWC
     ctc_prop = (ctc_speech) / ((duration * 60) / 5) #proportion of 5 minute segments with CTC 
   ) %>% 
@@ -397,6 +399,14 @@ glimpse(lena_5min_cl_wf)
 ```
 ##identifying weird recordings and what to do about them
 ```{r}
+##Deleted from raw data: 1052 5/8/18 recording, 62 Day 1 on 7/11/17 (from LENAExport_5minute_20181220)
+##Filter from analyses: 56 Day 1, 110 Day 2, use 106 day 1 (day 2 not typical), use 1052 day 2 (day 1 "went to zoo for 90 min" but doesn't say when), use 1045 day 2 (day 1 not whole day), 1010 use day 2 (mother worked 5 hrs day 1)
+
+##Deleting data with crowds
+#recordings with crowds --
+  #cs: 27 9/18/16 15-16:00 (5 min files), 119 4/19/18 11:30-12:30 (20181220), 135 9/13/18 13-13:30 (20181220), 38 2/10/17 16-18 (20181220), 48 3/5/17 11-13 (20181220), 61 7/18/17 13-15 (20181220), 62 7/30/17 9:30-10:30 (2018), 76 8/21/17 15-16 (2018), 2 day 1 19:30-10 (5 min files), 28 day 1 13-15 (5 min files), 64 8/8/17 11-11:30 (2018), 75 9/15/17 12-15 (2018), 87 9/11/17 14:40-16:40 (2018), 105 3/15/18 16:45-16:55 (2018), 27 10/2/16 11-13 (5 min files), 119 5/12/18 13:30-17:30 (2018), 135 9/23/18 9-10:45 (2018), 12 day 2 12:20-13:50 (5 min files), 45 4/22/17 10:30-11:30 (2018), 50 3/18/17 9:45-12:45 (not completed correctly; entirely deleted), 60 7/16/17 14:30-16:30 (2018), 72 8/6/17 13-16 (2018), 94 4/15/18 12:30-14 (2018), 106 4/1/18 14:40-18:40 (2018), 115 4/14/18 13-14:30 (2018)
+  #long: 1029 4/6/18 18:40-20:40 (2018), 1021 6/25/18 18-19:30 (2018), 1078 6/15/18 17:30-19:30 (2018), 1028 4/17/18 15:30-16 (2018), 1036 3/22/18 13:15-15:15 (2018), 1045 4/22/18 10-12 (2018), 1010 2/8/18 9:15-14:15, 1028 5/6/18 15-19 (2018), 1036 5/5/18 8-9 16-17 (2018), 1045 5/19/18 10:30-12:30 (2018), 1011 5/13/18 15-16 (2018), 1019 5/20/18 16-17 (2018), 1023 5/12/18 11-13 (2018), 1060 9/29/18 17:30-18:30 (2018)
+
 ##count weekdays and weekends 
 lena_5min_cl_wf %>% 
   count(day_type_D1)
@@ -407,9 +417,7 @@ lena_5min_cl_wf %>%
 lena_5min_cl_wf %>% 
   filter(day_type_D2 == "weekend" | day_type_D1 == "weekend")
 
-#Conclusion: 54 with weekend recording, so need to covary for day type
-
-#duration in crowd vs. metrics of interest
+#Conclusion: 54 with weekend recording, so need to covary for day type (can't just use weekend from everyone)
 
 
 ```
