@@ -667,13 +667,37 @@ q18month_symp <-
 ```{r}
 #but higher score means knows less?
 #yes = 1, sometimes = 2, not yet = 3
-q_18month_scored$asq_comm <-
-  rowMeans(subset(q_18month_scored, select = c(asq_c1, asq_c2, asq_c3, asq_c4, asq_c5, asq_c6)), na.rm = T)*6
-  
+q_18month_scored$asq_c1r = recode(q_18month_scored$asq_c1, "1"=10, "2"=5, "3"=0)
+q_18month_scored$asq_c2r = recode(q_18month_scored$asq_c2, "1"=10, "2"=5, "3"=0)
+q_18month_scored$asq_c3r = recode(q_18month_scored$asq_c3, "1"=10, "2"=5, "3"=0)
+q_18month_scored$asq_c4r = recode(q_18month_scored$asq_c4, "1"=10, "2"=5, "3"=0)
+q_18month_scored$asq_c5r = recode(q_18month_scored$asq_c5, "1"=10, "2"=5, "3"=0)
+q_18month_scored$asq_c6r = recode(q_18month_scored$asq_c6, "1"=10, "2"=5, "3"=0)
+
+q_18month_scored$asq_comm <- rowMeans(subset(q_18month_scored, select = c(asq_c1r, asq_c2r, asq_c3r, asq_c4r, asq_c5r, asq_c6r)), na.rm = T)*6
+
+
 ```
 #Score the MB CDI
 ```{r}
 #1 sum score for expressive lang (mbcdi_1__2), another for receptive lang (mbcdi_1__1)
 #101 items
+
+mbcdi_express_vars <- 
+  q_18month_scored %>% 
+  select(contains("__2")) %>% 
+  names()
+
+mbcdi_recept_vars <- 
+  q_18month_scored %>% 
+  select(contains("__1")) %>% 
+  names()
+
+q_18month_scored$mbcdi_express_total <-
+  rowMeans(subset(q_18month_scored, select = c(mbcdi_express_vars)), na.rm = T)*100
+
+q_18month_scored$mbcdi_recept_total <-
+  rowMeans(subset(q_18month_scored, select = c(mbcdi_recept_vars)), na.rm = T)*100
+
 ```
 
