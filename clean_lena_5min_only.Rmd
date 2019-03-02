@@ -209,16 +209,19 @@ lena_5min_cl <-
   group_by(ID, date_record, age) %>% 
   summarise(
     duration = sum(duration),
-    awc_speech = sum(AWC.Actual >= 1),
-    ctc_speech = sum(CTC.Actual >= 1),
-    cvc_speech = sum(CVC.Actual >= 1)
+    awc_depend = sum(AWC.Actual >= 1),
+    ctc_depend = sum(CTC.Actual >= 1),
+    cvc_depend = sum(CVC.Actual >= 1),
+    awc_total = sum(AWC.Actual),
+    ctc_total = sum(CTC.Actual),
+    cvc_total = sum(CVC.Actual)
   ) %>% 
   mutate(
-    awc_daily_rate = awc_speech/duration, #daily AWC rate
-    ctc_daily_rate = ctc_speech/duration, #daily CTC rate
-    cvc_daily_rate = cvc_speech/duration, #daily CVC rate
-    awc_prop = (awc_speech) / ((duration * 60) / 5), #proportion of 5 minute segments with AWC
-    ctc_prop = (ctc_speech) / ((duration * 60) / 5) #proportion of 5 minute segments with CTC 
+    awc_daily_rate = awc_total/duration, #daily AWC rate
+    ctc_daily_rate = ctc_total/duration, #daily CTC rate
+    cvc_daily_rate = cvc_total/duration, #daily CVC rate
+    awc_prop = (awc_depend) / ((duration * 60) / 5), #proportion of 5 minute segments with AWC
+    ctc_prop = (ctc_depend) / ((duration * 60) / 5) #proportion of 5 minute segments with CTC 
   ) %>% 
   filter(
     (age >= 5 & age <= 8),
@@ -231,6 +234,8 @@ lena_5min_cl <-
     day = 1:n()
   ) %>% 
   ungroup()
+
+lena_5min_cl
 ```
 
 ```{r}
@@ -331,48 +336,3 @@ t.test(percent_mother ~ lena_weekend, data = lena_followup)
 ```
 
 ```{r}
-lena_mal <- 
-  lena_daily_cl_wf %>% 
-  left_join(lscr_T1lg_6mocs, by = "ID") %>% 
-  left_join(demo, by = "ID") %>% 
-  left_join(crisys_wf, by = "ID")
-
-
-t.test(sixmonth_crisys_win ~ maltreated, data = lena_mal)
-
-glimpse
-
-lena_mal %>% 
-  filter(!is.na(maltreated)) %>% 
-  group_by(maltreated) %>% 
-  summarise_at(
-    vars(AWC_rate_D1, AWC_rate_D2, CTC_rate_D1, CTC_rate_D2, CVC_rate_D1, CVC_rate_D2, age.x),
-    funs(mean, sd), na.rm = TRUE
-  )
-
-t.test(AWC_rate_D1 ~ male, data = lena_mal)
-t.test(CTC_rate_D1 ~ maltreated, data = lena_mal)
-
-sy
-
-lena_mal <- 
-  lena_5min_cl_wf %>% 
-  left_join(lscr_T1lg_6mocs, by = "ID")
-
-lena_mal %>% 
-  filter(!is.na(maltreated)) %>% 
-  group_by(maltreated) %>% 
-  summarise_at(
-    vars(awc_prop_D1, ctc_prop_D1),
-    funs(mean, sd), na.rm = TRUE
-  )
-
-t.test(awc_prop_D1 ~ maltreated, data = lena_mal)
-
-glimpse(lena_mal)
-
-
-glimpse(lena_mal)
-```
-
-
