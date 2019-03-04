@@ -1,0 +1,185 @@
+---
+title: "lena_18mo_symptoms_analyses"
+author: "Fran Querdasi"
+date: "3/2/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#Parameters
+
+##set up CRAN
+r = getOption("repos")
+r["CRAN"] = "http://cran.us.r-project.org"
+options(repos = r)
+
+#load libraries
+library(tidyverse)
+library("Hmisc")
+install.packages("car")
+library(car)
+install.packages("gvlma")
+
+#get files
+crisys_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190202.csv"
+q_18mo_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190202.csv"
+demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190131.csv"
+lena_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190202.csv"
+  
+```
+#Read in and join data
+```{r}
+lena_18mo_sym_df <-
+  read_csv(q_18mo_file) %>% 
+  select(
+    ID, 
+    itsea_symptoms,
+    itsea_competence,
+    baby_age_18month
+  ) %>% 
+  left_join(
+    read_csv(crisys_file) 
+  ) %>% 
+  left_join(
+    read_csv(demographics_file) %>% 
+      select(
+        ID,
+        education,
+        annual_income,
+        income_needs,
+        male
+      )
+  ) %>% 
+  left_join(
+    read_csv(lena_file) %>% 
+      rename(
+        baby_age_lena = age
+      )
+  )
+
+lena_18mo_sym_df <-
+  lena_18mo_sym_df %>% 
+  filter(!is.na(day))
+
+glimpse(lena_18mo_sym_df)
+  
+```
+#look at distributions of data
+```{r}
+qplot(lena_18mo_sym_df$itsea_competence, 
+      geom = "histogram",
+      binwidth = 1)
+
+qplot(lena_18mo_sym_df$itsea_symptoms, 
+      geom = "histogram",
+      binwidth = 1)
+
+qplot(lena_18mo_sym_df$baby_age_18month, 
+      geom = "histogram",
+      binwidth = 1)
+
+qplot(lena_18mo_sym_df$crisys_total_6mo_win, 
+      geom = "histogram",
+      binwidth = 1)
+
+qplot(lena_18mo_sym_df$income_needs, 
+      geom = "histogram",
+      binwidth = 1)
+
+qplot(lena_18mo_sym_df$baby_age_lena, 
+      geom = "histogram",
+      binwidth = 1)
+
+qplot(lena_18mo_sym_df$duration, 
+      geom = "histogram",
+      binwidth = 1)
+
+qplot(lena_18mo_sym_df$awc_prop, 
+      geom = "histogram",
+      binwidth = 1)
+
+qplot(lena_18mo_sym_df$ctc_prop, 
+      geom = "histogram",
+      binwidth = 1)
+
+qplot(lena_18mo_sym_df$cvc_prop, 
+      geom = "histogram",
+      binwidth = 1)
+
+count(lena_18mo_sym_df, day_type)
+
+```
+#Look at means, std, min, max
+```{r}
+lena_18mo_sym_df %>% 
+  summarise_at(vars(itsea_competence, itsea_symptoms, crisys_total_6mo_win, awc_prop, ctc_prop, cvc_prop), funs(mean, sd, min, max), na.rm = TRUE)
+
+#is there a way to reformat this data table?
+```
+#correlation tables
+```{r}
+corr_mat <- rcorr(as.matrix(lena_18mo_sym_df, na.rm = TRUE), type = c("pearson"))
+corr_mat
+```
+#Run analyses
+```{r}
+#don't need to specify intercept
+#F-statistic - whether overall model is sig
+#obs = higher df + 1 
+#Adjusted R-squared - how much variance model explains
+
+lena_18mo_sym_int_awc <- lm(itsea_symptoms ~ crisys_total_6mo_win * awc_prop, data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int)
+#significant!!
+
+lena_18mo_sym_int_ctc <- lm(itsea_symptoms ~ crisys_total_6mo_win * ctc_prop, data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int)
+#ns
+
+lena_18mo_sym_int_cvc <- lm(itsea_symptoms ~ crisys_total_6mo_win * cvc_prop, data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int)
+#ns
+
+#run again w covs
+lena_18mo_sym_int_awc_covs <- lm(itsea_symptoms ~ crisys_total_6mo_win * awc_prop + baby_age_lena + male + baby_age_18month, data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int)
+#explains even more variance!
+```
+#visualize interactions
+```{r}
+lena_18mo_sym_df %>%
+ggplot(aes(itsea_symptoms, awc_prop, color = crisys_total_6mo_win)) +
+geom_point() +
+geom_smooth(method ="lm")
+```
+#Regression diagnostics
+```{r}
+#assessing outliers
+outlierTest(lena_18mo_sym_int_awc) # Bonferonni p-value for most extreme obs
+#not sure why this didn't work
+qqPlot(lena_18mo_sym_int_awc, main="QQ Plot") #qq plot for studentized resid 
+leveragePlots(lena_18mo_sym_int_awc) # leverage plots
+
+# Normality of Residuals
+# qq plot for studentized resid
+qqPlot(lena_18mo_sym_int_awc, main="QQ Plot")
+# distribution of studentized residuals
+library(MASS)
+sresid <- studres(lena_18mo_sym_int_awc) 
+hist(lena_18mo_sym_int_awc, freq=FALSE, 
+   main="Distribution of Studentized Residuals") #error - x must be numeric
+xfit<-seq(min(sresid),max(sresid),length=40) 
+yfit<-dnorm(xfit) 
+lines(xfit, yfit)
+
+# Evaluate Collinearity
+vif(lena_18mo_sym_int_awc) # variance inflation factors 
+sqrt(vif(lena_18mo_sym_int_awc)) > 2 # problem?
+#may be problem (crisys and interaction)
+
+# Global test of model assumptions
+library(gvlma)
+gvmodel <- gvlma(lena_18mo_sym_int_awc) 
+summary(lena_18mo_sym_int_awc)
+```
+
