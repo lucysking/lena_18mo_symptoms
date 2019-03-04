@@ -8,6 +8,7 @@ First run script "demographics.rmd"
 ```{r}
 #Libraries
 library(tidyverse)
+library(lubridate)
 library(purrr)
 #install.packages("psych")
 library(psych)
@@ -35,9 +36,10 @@ q_18month <-
   ) %>% 
   left_join(
     demo %>% 
-      select(ID, male),
+      select(ID, male, baby_dob),
     by = "ID"
-  )
+  ) %>% 
+  unique() #why were longitudinal ids duplicated?
 ```
 
 # Score ITSEA
@@ -356,14 +358,14 @@ q_18month_scored <-
   ) %>% 
   ungroup()
 ```
-
+#Calculate symptom and competence factor scores
 ```{r}
-##Calcuate factor scores
 #psychopathology = sum(itsea_intern, extern, negemo)
 #competence = sum(compliance?, attention?, motivation?, play, empath, social)
 
 q_18month_scored <-
-  q_18month_scored %>% 
+  q_18month_scored %>%
+  group_by(ID) %>% 
   mutate(
     itsea_symptoms = mean(
       c(
@@ -379,10 +381,11 @@ q_18month_scored <-
         itsea_social
       ), na.rm = TRUE
     )
-  )
-  
-      
+  ) %>% 
+  ungroup() 
 
+     
+glimpse(q_18month_scored)
 ```
 
 ## calculate cut scores
@@ -448,8 +451,7 @@ q_18month_scored <-
   ungroup()
 ```
 
-
-**Score the ECSA**
+##Score the ECSA**
 ```{r}
 q_18month_scored <-
   q_18month_scored %>% 
@@ -534,7 +536,7 @@ q_18month_scored %>%
   mutate(prop = n / sum(n))
 ```
 
-
+#visualizing subscale scores
 ```{r}
 q_18month_scored %>% 
   select(itsea_activity:itsea_social) %>% 
@@ -553,7 +555,7 @@ q_18month_scored %>%
 
 
 ```
-
+#visualizing ecsa scores
 ```{r}
 q_18month_scored %>% 
   ggplot(aes(ecsa_total)) +
@@ -681,7 +683,10 @@ q_18month_scored$asq_comm <- rowMeans(subset(q_18month_scored, select = c(asq_c1
 #Score the MB CDI
 ```{r}
 #1 sum score for expressive lang (mbcdi_1__2), another for receptive lang (mbcdi_1__1)
-#101 items
+#100 items + 1 "combining words" item
+#mbcdi_1__2 = 1 --> +1 for expressive & receptive
+#mbcdi_1__1 = 1 --> +1 for receptive
+#if 
 
 mbcdi_express_vars <- 
   q_18month_scored %>% 
@@ -699,5 +704,38 @@ q_18month_scored$mbcdi_express_total <-
 q_18month_scored$mbcdi_recept_total <-
   rowMeans(subset(q_18month_scored, select = c(mbcdi_recept_vars)), na.rm = T)*100
 
+```
+##Select data for lena_18mo_symptoms project
+```{r}
+q18month_symp <-
+  q18month_symp %>% 
+  left_join(
+    q_18month_scored %>% 
+      select(
+        ID,
+        survey_date,
+        itsea_symptoms,
+        itsea_competence,
+        male
+      ), 
+    by = "ID") %>% 
+    left_join(
+      q_18month %>% 
+        select(
+          ID,
+          baby_dob
+        ), by = "ID"
+    ) 
+
+q18month_symp <-
+  q18month_symp %>% 
+  mutate(
+    survey_date = parse_date_time(survey_date, orders = c("ymd", "mdy")),
+    baby_age_18month = (baby_dob %--% survey_date) / months(1),
+    baby_age_18month = as.integer(baby_age_18month)
+  ) %>% 
+  distinct()
+
+write_csv(q18month_symp, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190202.csv")
 ```
 
