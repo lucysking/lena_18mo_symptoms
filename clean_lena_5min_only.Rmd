@@ -97,7 +97,7 @@ lena_5min_sp <-
   )
 ```
 
-# Read in 5-minute data 
+# Read in 5-minute data from Pro license 2 (2018 file) and SP
 ```{r warning=FALSE}
 lena_5min <-
   read_csv(lena_5min_file_1) %>% 
@@ -130,7 +130,7 @@ lena_5min <-
     -dob
   )
 ```
-
+#Read in data from individual files (Pro license 1)
 ```{r warning=FALSE}
 lena_5min2 <-
   lena_5min_files_df %>%
@@ -187,7 +187,7 @@ lena_5min2 <-
     -dob
   )
 ```
-
+#combine all data
 ```{r}
 lena_5min <-
   lena_5min %>% 
@@ -221,7 +221,8 @@ lena_5min_cl <-
     ctc_daily_rate = ctc_total/duration, #daily CTC rate
     cvc_daily_rate = cvc_total/duration, #daily CVC rate
     awc_prop = (awc_depend) / ((duration * 60) / 5), #proportion of 5 minute segments with AWC
-    ctc_prop = (ctc_depend) / ((duration * 60) / 5) #proportion of 5 minute segments with CTC 
+    ctc_prop = (ctc_depend) / ((duration * 60) / 5), #proportion of 5 minute segments with CTC 
+    cvc_prop = (cvc_depend)/ ((duration * 60) / 5)
   ) %>% 
   filter(
     (age >= 5 & age <= 8),
@@ -286,12 +287,15 @@ glimpse(lena_5min_cl_wf)
 ##Deleted from raw data: 1052 5/8/18 recording, 62 Day 1 on 7/11/17 (from LENAExport_5minute_20181220)
 ##Filter from analyses: 56 Day 1, 110 Day 2, use 106 day 1 (day 2 not typical), use 1052 day 2 (day 1 "went to zoo for 90 min" but doesn't say when), use 1045 day 2 (day 1 not whole day), 1010 use day 2 (mother worked 5 hrs day 1)
 
-##Deleting data with crowds
+##Deleting data with crowds -cleaned from raw data (files renamed "_cleaned")
 #recordings with crowds --
   #cs: 27 9/18/16 15-16:00 (5 min files), 119 4/19/18 11:30-12:30 (20181220), 135 9/13/18 13-13:30 (20181220), 38 2/10/17 16-18 (20181220), 48 3/5/17 11-13 (20181220), 61 7/18/17 13-15 (20181220), 62 7/30/17 9:30-10:30 (2018), 76 8/21/17 15-16 (2018), 2 day 1 19:30-10 (5 min files), 28 day 1 13-15 (5 min files), 64 8/8/17 11-11:30 (2018), 75 9/15/17 12-15 (2018), 87 9/11/17 14:40-16:40 (2018), 105 3/15/18 16:45-16:55 (2018), 27 10/2/16 11-13 (5 min files), 119 5/12/18 13:30-17:30 (2018), 135 9/23/18 9-10:45 (2018), 12 day 2 12:20-13:50 (5 min files), 45 4/22/17 10:30-11:30 (2018), 50 3/18/17 9:45-12:45 (not completed correctly; entirely deleted), 60 7/16/17 14:30-16:30 (2018), 72 8/6/17 13-16 (2018), 94 4/15/18 12:30-14 (2018), 106 4/1/18 14:40-18:40 (2018), 115 4/14/18 13-14:30 (2018)
   #long: 1029 4/6/18 18:40-20:40 (2018), 1021 6/25/18 18-19:30 (2018), 1078 6/15/18 17:30-19:30 (2018), 1028 4/17/18 15:30-16 (2018), 1036 3/22/18 13:15-15:15 (2018), 1045 4/22/18 10-12 (2018), 1010 2/8/18 9:15-14:15, 1028 5/6/18 15-19 (2018), 1036 5/5/18 8-9 16-17 (2018), 1045 5/19/18 10:30-12:30 (2018), 1011 5/13/18 15-16 (2018), 1019 5/20/18 16-17 (2018), 1023 5/12/18 11-13 (2018), 1060 9/29/18 17:30-18:30 (2018)
 
-##count weekdays and weekends 
+
+```
+#count weekdays vs weekends
+```{r}
 lena_5min_cl_wf %>% 
   count(day_type_D1)
 
@@ -301,9 +305,8 @@ lena_5min_cl_wf %>%
 lena_5min_cl_wf %>% 
   filter(day_type_D2 == "weekend" | day_type_D1 == "weekend")
 
-#Conclusion: 54 with weekend recording, so need to covary for day type (can't just use weekend from everyone)
 
-
+#Conclusion: 54 with weekend recording, so need to covary for day type (can't just use weekend from everyone); also many more weekends in day 2 than day 1
 ```
 
 ```{r}
@@ -334,5 +337,53 @@ lena_followup <-
 #t-test weekday vs. weekend and percent of time spent w mom
 t.test(percent_mother ~ lena_weekend, data = lena_followup)
 ```
+###merge relevant follow up qs data with cleaned & filtered lena data
+```{r}
+##add percent_mother variable to lena data to see if difference weekday vs. weekend within the subset of recordings we've filtered, joining on ID and day_type
+
+lena_5min_cl_filtered <-
+  lena_5min_cl_filtered %>% 
+  mutate(
+    day_weekend_num = if_else(
+      day_type == "weekend",
+      1, 0
+    )
+  )
+  
+
+left_join(
+    lena_followup
+  ) %>% 
+  select(
+    percent_mother
+  )
+```
+
+
+##Write file with relevant data 
 
 ```{r}
+#all data
+write_csv(lena_5min_cl, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byday_20190202.csv")
+write_csv(lena_5min_cl_wf, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byID_20190202.csv")
+
+#Filter data to use  
+#IDs to use day 2: 
+# day 2: 110 (put device in pocket rather than chest day 1), 106
+
+#110 day 2 isn't in dataset and 106 isn't in it at all, so 
+
+lena_5min_cl_filtered <-
+  lena_5min_cl %>%
+  filter(
+    ID != 110
+  ) %>% 
+  filter(
+    day == 1
+  )
+  
+  glimpse(lena_5min_cl_filtered)
+  
+  write_csv(lena_5min_cl_filtered, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190202.csv")
+  
+```
