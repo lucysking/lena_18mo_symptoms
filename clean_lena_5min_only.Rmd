@@ -236,9 +236,8 @@ lena_5min_cl <-
     day = 1:n()
   ) %>% 
   ungroup()
-
-lena_5min_cl
 ```
+
 #create wideform dataframe with 1 row per ID
 ```{r}
 lena_5min_cl %>% 
@@ -359,6 +358,7 @@ left_join(
     percent_mother
   )
 ```
+
 ##Write file with relevant data 
 
 ```{r}
@@ -381,8 +381,8 @@ lena_5min_cl_filtered <-
     day == 1
   )
   
-  glimpse(lena_5min_cl_filtered)
+
   
-  write_csv(lena_5min_cl_filtered, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190202.csv")
+write_csv(lena_5min_cl_filtered, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190202.csv")
   
 ```
