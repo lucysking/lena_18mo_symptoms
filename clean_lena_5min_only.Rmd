@@ -196,6 +196,7 @@ lena_5min <-
 ```
 
 ## Clean and wrangle 5-minute data (generate prop and daily rate variables)
+#conditions to filter on: age between 5 and 8 months at time of recording, duration of recording at least 8 hours
 ```{r}
 lena_5min_cl <- 
   lena_5min %>% 
@@ -238,7 +239,7 @@ lena_5min_cl <-
 
 lena_5min_cl
 ```
-
+#create wideform dataframe with 1 row per ID
 ```{r}
 lena_5min_cl %>% 
   count(day)
@@ -308,7 +309,7 @@ lena_5min_cl_wf %>%
 
 #Conclusion: 54 with weekend recording, so need to covary for day type (can't just use weekend from everyone); also many more weekends in day 2 than day 1
 ```
-
+#summarize proportion variables
 ```{r}
 lena_5min_cl_wf %>% 
   summarise_at(
@@ -337,7 +338,7 @@ lena_followup <-
 #t-test weekday vs. weekend and percent of time spent w mom
 t.test(percent_mother ~ lena_weekend, data = lena_followup)
 ```
-###merge relevant follow up qs data with cleaned & filtered lena data
+###merge relevant follow up qs data with cleaned & filtered lena data - **unfinished**
 ```{r}
 ##add percent_mother variable to lena data to see if difference weekday vs. weekend within the subset of recordings we've filtered, joining on ID and day_type
 
@@ -358,8 +359,6 @@ left_join(
     percent_mother
   )
 ```
-
-
 ##Write file with relevant data 
 
 ```{r}
@@ -367,11 +366,11 @@ left_join(
 write_csv(lena_5min_cl, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byday_20190202.csv")
 write_csv(lena_5min_cl_wf, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byID_20190202.csv")
 
-#Filter data to use  
+#Filtered data to use for lena_18month_symptoms project 
 #IDs to use day 2: 
 # day 2: 110 (put device in pocket rather than chest day 1), 106
 
-#110 day 2 isn't in dataset and 106 isn't in it at all, so 
+#110 day 2 isn't in dataset and 106 isn't in it at all, so taking day 1 from everyone:
 
 lena_5min_cl_filtered <-
   lena_5min_cl %>%
