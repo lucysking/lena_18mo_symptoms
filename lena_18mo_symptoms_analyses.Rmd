@@ -16,9 +16,7 @@ options(repos = r)
 #load libraries
 library(tidyverse)
 library("Hmisc")
-install.packages("car")
 library(car)
-install.packages("gvlma")
 
 #get files
 crisys_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190202.csv"
@@ -118,8 +116,31 @@ lena_18mo_sym_df %>%
 ```
 #correlation tables
 ```{r}
+#this is what I did for the cognitive predictors of caregiving sensitivity project. They didn't work here though, and I'm not sure why. 
 corr_mat <- rcorr(as.matrix(lena_18mo_sym_df, na.rm = TRUE), type = c("pearson"))
 corr_mat
+
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor  =(cormat)[ut],
+    p = pmat[ut]
+    )
+}
+
+#Apply flattening function
+flat_corr_mat <- flattenCorrMatrix(corr_mat$r, corr_mat$P)
+```
+```{r}
+##Visualize correlation matrix
+install.packages("corrplot")
+library("corrplot")
+
+# Insignificant correlations are left blank
+corrplot(corr_mat$r, type="upper", order="hclust", 
+         p.mat = corr_mat$P, sig.level = 0.05, insig = "blank")
 ```
 #Run analyses
 ```{r}
@@ -129,20 +150,20 @@ corr_mat
 #Adjusted R-squared - how much variance model explains
 
 lena_18mo_sym_int_awc <- lm(itsea_symptoms ~ crisys_total_6mo_win * awc_prop, data = lena_18mo_sym_df)
-summary(lena_18mo_sym_int)
-#significant!!
+summary(lena_18mo_sym_int_awc)
+#significant
 
 lena_18mo_sym_int_ctc <- lm(itsea_symptoms ~ crisys_total_6mo_win * ctc_prop, data = lena_18mo_sym_df)
-summary(lena_18mo_sym_int)
+summary(lena_18mo_sym_int_ctc)
 #ns
 
 lena_18mo_sym_int_cvc <- lm(itsea_symptoms ~ crisys_total_6mo_win * cvc_prop, data = lena_18mo_sym_df)
-summary(lena_18mo_sym_int)
+summary(lena_18mo_sym_int_cvc)
 #ns
 
 #run again w covs
 lena_18mo_sym_int_awc_covs <- lm(itsea_symptoms ~ crisys_total_6mo_win * awc_prop + baby_age_lena + male + baby_age_18month, data = lena_18mo_sym_df)
-summary(lena_18mo_sym_int)
+summary(lena_18mo_sym_int_awc_covs)
 #explains even more variance!
 ```
 #visualize interactions
