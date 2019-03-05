@@ -17,8 +17,8 @@ library(GPArotation)
 
 #Parameters
 #q_18month_file <- "~/Desktop/BABIES/r01_winter_2019/data/questionnaires_18mo_20181204.csv"
-q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/questionnaires_18mo_cs_20190202.csv"
-q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data/questionnaires_18mo_long_20190202.csv"
+q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/questionnaires_18mo_cs_datecleaned_20190202.csv"
+q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data/questionnaires_18mo_long_datecleaned_20190202.csv"
 ```
 
 **Read in data**
@@ -701,9 +701,64 @@ mbcdi_recept_vars <-
 q_18month_scored$mbcdi_express_total <-
   rowMeans(subset(q_18month_scored, select = c(mbcdi_express_vars)), na.rm = T)*100
 
-q_18month_scored$mbcdi_recept_total <-
+q_18month_scored$mbcdi_receptonly_total <-
   rowMeans(subset(q_18month_scored, select = c(mbcdi_recept_vars)), na.rm = T)*100
 
+q_18month_scored$mbcdi_101 = recode(q_18month_scored$mbcdi_101, "1"=0, "2"=1, "3"=2)
+
+#deal with cases where ps endorse both "understands" and "understands and says"
+
+recode_mbcdi_recept <- function(df, value) {
+
+  value_2 <- str_replace(value, "__1", "__2")
+  
+  df %>%
+    mutate(
+      value_comb = if_else(
+        value == 1 | value_2 == 1, 1, 0
+      )
+    )
+  
+}
+
+recode_mbcdi_recept(q_18month_scored, "mbcdi_1___1")
+
+for (i in mbcdi_recept_vars) {
+  value_2 <- str_replace(i, "__1", "__2")
+  
+  q_18month_scored %>%
+    mutate(
+      i_comb = if_else(
+        i == 1 | value_2 == 1, 1, 0
+      )
+    )
+}
+
+q_18month_scored <-
+  q_18month_scored %>% 
+  mutate(
+    mbcdi_recept_only = 
+      map_dbl(
+        select(., mbcdi_recept_vars),
+        function(...) recode_mbcdi_recept(c(...))
+        )
+  )
+    
+
+q_18month_scored <-
+  q_18month_scored %>% 
+  mutate_at(
+    mbcdi_recept_vars,
+    case_when(
+      mbcdi_express_vars == 1 ~ 0)
+  )
+
+q_18month_scored <-
+  q_18month_scored %>% 
+  mutate(
+    mbcdi_recept_total = mbcdi_express_total + mbcdi_receptonly_total,
+    mbcdi_combine = mbcdi_101
+  ) 
 ```
 ##Select data for lena_18mo_symptoms project
 ```{r}
@@ -737,5 +792,45 @@ q18month_symp <-
   distinct()
 
 write_csv(q18month_symp, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190202.csv")
+```
+##Select scores for all measures
+```{r}
+q18month_demo <-
+  q18month_symp %>% 
+  select(
+    ID,
+    male,
+    baby_age_18month
+  )
+
+q18month_scores <-
+  q_18month_scored %>% 
+  select(
+    ID,
+    survey_date,
+    itsea_activity,
+    itsea_agress,
+    itsea_depp,
+    itsea_empath,
+    itsea_gad,
+    itsea_play,
+    itsea_negemo,
+    itsea_social,
+    itsea_extern,
+    itsea_intern,
+    ecsa_total,
+    asq_comm,
+    mbcdi_recept_total,
+    mbcdi_express_total, 
+    mbcdi_combine
+  ) %>% 
+  left_join(
+    q18month_demo,
+    by = "ID"
+    )
+
+write_csv(q18month_scores, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scored_20190304.csv")
+
+#note: norm scoring was done manually after this step
 ```
 
