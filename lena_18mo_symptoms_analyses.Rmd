@@ -66,43 +66,43 @@ glimpse(lena_18mo_sym_df)
 ```{r}
 qplot(lena_18mo_sym_df$itsea_competence, 
       geom = "histogram",
-      binwidth = 1)
+      binwidth = .05)
 
 qplot(lena_18mo_sym_df$itsea_symptoms, 
       geom = "histogram",
-      binwidth = 1)
+      binwidth = .05)
 
 qplot(lena_18mo_sym_df$baby_age_18month, 
       geom = "histogram",
-      binwidth = 1)
+      binwidth = .5)
 
 qplot(lena_18mo_sym_df$crisys_total_6mo_win, 
       geom = "histogram",
-      binwidth = 1)
+      binwidth = .5)
 
 qplot(lena_18mo_sym_df$income_needs, 
       geom = "histogram",
-      binwidth = 1)
+      binwidth = .1)
 
 qplot(lena_18mo_sym_df$baby_age_lena, 
       geom = "histogram",
-      binwidth = 1)
+      binwidth = .1)
 
 qplot(lena_18mo_sym_df$duration, 
       geom = "histogram",
-      binwidth = 1)
+      binwidth = 2)
 
 qplot(lena_18mo_sym_df$awc_prop, 
       geom = "histogram",
-      binwidth = 1)
+      binwidth = .05)
 
 qplot(lena_18mo_sym_df$ctc_prop, 
       geom = "histogram",
-      binwidth = 1)
+      binwidth = .05)
 
 qplot(lena_18mo_sym_df$cvc_prop, 
       geom = "histogram",
-      binwidth = 1)
+      binwidth = .05)
 
 count(lena_18mo_sym_df, day_type)
 
@@ -110,37 +110,84 @@ count(lena_18mo_sym_df, day_type)
 #Look at means, std, min, max
 ```{r}
 lena_18mo_sym_df %>% 
-  summarise_at(vars(itsea_competence, itsea_symptoms, crisys_total_6mo_win, awc_prop, ctc_prop, cvc_prop), funs(mean, sd, min, max), na.rm = TRUE)
+  summarise_at(
+    vars(
+      itsea_competence, 
+      itsea_symptoms, 
+      crisys_total_6mo_win, 
+      awc_prop, ctc_prop, 
+      cvc_prop
+      ), 
+    funs(
+        mean, 
+        sd, 
+        min, 
+        max), 
+    na.rm = TRUE)
 
 #is there a way to reformat this data table?
 ```
-#correlation tables
+#correlation tables - not working
 ```{r}
 #this is what I did for the cognitive predictors of caregiving sensitivity project. They didn't work here though, and I'm not sure why. 
-corr_mat <- rcorr(as.matrix(lena_18mo_sym_df, na.rm = TRUE), type = c("pearson"))
-corr_mat
+# corr_mat <- rcorr(as.matrix(lena_18mo_sym_df, na.rm = TRUE), type = c("pearson"))
+# corr_mat
+# 
+# flattenCorrMatrix <- function(cormat, pmat) {
+#   ut <- upper.tri(cormat)
+#   data.frame(
+#     row = rownames(cormat)[row(cormat)[ut]],
+#     column = rownames(cormat)[col(cormat)[ut]],
+#     cor  =(cormat)[ut],
+#     p = pmat[ut]
+#     )
+# }
+# 
+# #Apply flattening function
+# flat_corr_mat <- flattenCorrMatrix(corr_mat$r, corr_mat$P)
 
-flattenCorrMatrix <- function(cormat, pmat) {
-  ut <- upper.tri(cormat)
-  data.frame(
-    row = rownames(cormat)[row(cormat)[ut]],
-    column = rownames(cormat)[col(cormat)[ut]],
-    cor  =(cormat)[ut],
-    p = pmat[ut]
-    )
-}
-
-#Apply flattening function
-flat_corr_mat <- flattenCorrMatrix(corr_mat$r, corr_mat$P)
-```
-```{r}
 ##Visualize correlation matrix
-install.packages("corrplot")
-library("corrplot")
+# install.packages("corrplot")
+# library("corrplot")
+# 
+# # Insignificant correlations are left blank
+# corrplot(corr_mat$r, type="upper", order="hclust", 
+#          p.mat = corr_mat$P, sig.level = 0.05, insig = "blank")
+```
 
-# Insignificant correlations are left blank
-corrplot(corr_mat$r, type="upper", order="hclust", 
-         p.mat = corr_mat$P, sig.level = 0.05, insig = "blank")
+#center continuous variables
+```{r}
+    #create variable that is median split of crisys, and also a factor
+lena_18mo_sym_df <-
+  lena_18mo_sym_df %>% 
+  mutate(
+    crisys_median_split = if_else(
+      crisys_total_6mo_win > median(crisys_total_6mo_win, na.rm = TRUE),
+      "stressed", "not stressed"
+      )
+  )
+
+lena_18mo_sym_df <-
+  lena_18mo_sym_df %>% 
+  mutate(
+    crisys_median_split_num = if_else(
+      crisys_median_split == "stressed", 
+      1, 0
+    ),
+    crisys_median_factor = as.factor(crisys_median_split_num)
+  )
+
+lena_18mo_sym_df <-
+  lena_18mo_sym_df %>% 
+  mutate(
+    awc_prop_centered = scale(awc_prop, scale = FALSE),
+    itsea_symptoms_centered = scale(itsea_symptoms, scale = FALSE),
+    ctc_prop_centered = scale(ctc_prop, scale = FALSE),
+    cvc_prop_centered = scale(cvc_prop, scale = FALSE),
+    itsea_competence_centered = scale(itsea_competence, scale = FALSE)
+  )
+
+contrasts(lena_18mo_sym_df$crisys_median_factor) = c(-1,1)
 ```
 #Run analyses
 ```{r}
@@ -149,29 +196,85 @@ corrplot(corr_mat$r, type="upper", order="hclust",
 #obs = higher df + 1 
 #Adjusted R-squared - how much variance model explains
 
-lena_18mo_sym_int_awc <- lm(itsea_symptoms ~ crisys_total_6mo_win * awc_prop, data = lena_18mo_sym_df)
+lena_18mo_sym_int_awc <- 
+  lm(
+    itsea_symptoms ~ 
+      crisys_total_6mo_win * awc_prop,
+    data = lena_18mo_sym_df, 
+    contrasts = (contrasts(lena_18mo_sym_df$crisys_median_factor) = c(-1,1)
+                 )
+    )
 summary(lena_18mo_sym_int_awc)
-#significant
+#significant, adjusted R squared = .1482
 
-lena_18mo_sym_int_ctc <- lm(itsea_symptoms ~ crisys_total_6mo_win * ctc_prop, data = lena_18mo_sym_df)
+lena_18mo_sym_int_ctc <- 
+  lm(
+    itsea_symptoms ~ 
+      crisys_total_6mo_win * ctc_prop,
+    data = lena_18mo_sym_df)
+
 summary(lena_18mo_sym_int_ctc)
 #ns
 
-lena_18mo_sym_int_cvc <- lm(itsea_symptoms ~ crisys_total_6mo_win * cvc_prop, data = lena_18mo_sym_df)
+lena_18mo_sym_int_cvc <- 
+  lm(
+    itsea_symptoms ~ 
+      crisys_total_6mo_win * cvc_prop,
+    data = lena_18mo_sym_df)
 summary(lena_18mo_sym_int_cvc)
 #ns
 
 #run again w covs
-lena_18mo_sym_int_awc_covs <- lm(itsea_symptoms ~ crisys_total_6mo_win * awc_prop + baby_age_lena + male + baby_age_18month, data = lena_18mo_sym_df)
+lena_18mo_sym_int_awc_covs <- 
+  lm(itsea_symptoms ~ 
+       crisys_total_6mo_win * awc_prop 
+     + baby_age_lena 
+     + male 
+     + baby_age_18month,
+     data = lena_18mo_sym_df)
 summary(lena_18mo_sym_int_awc_covs)
 #explains even more variance!
+
+#explanation of summary output: 
+#Residuals: Residuals are essentially the difference between the actual observed response values (distance to stop dist in our case) and the response values that the model predicted. The Residuals section of the model output breaks it down into 5 summary points. When assessing how well the model fit the data, you should look for a symmetrical distribution across these points on the mean value zero (0).
+#Coefficents: represent intercept and slope terms in model.
+#coefficient standard error: The coefficient Standard Error measures the average amount that the coefficient estimates vary from the actual average value of our response variable. We’d ideally want a lower number relative to its coefficients.
+#coefficient t value: The coefficient t-value is a measure of how many standard deviations our coefficient estimate is far away from 0. We want it to be far away from zero as this would indicate we could reject the null hypothesis
+#Resdiual standard error: Residual Standard Error is measure of the quality of a linear regression fit. Theoretically, every linear model is assumed to contain an error term E. Due to the presence of this error term, we are not capable of perfectly predicting our response variable  from the predictor one. The Residual Standard Error is the average amount that the response  will deviate from the true regression line.
+#R squared: The R-squared (R2) statistic provides a measure of how well the model is fitting the actual data. It takes the form of a proportion of variance. R2 is a measure of the linear relationship between our predictor variable and our response / target variable. It always lies between 0 and 1
+#F-statistic is a good indicator of whether there is a relationship between our predictor and the response variables. The further the F-statistic is from 1 the better it is. However, how much larger the F-statistic needs to be depends on both the number of data points and the number of predictors.
 ```
+#run model with just weekdays and see if results hold
+```{r}
+lena_18mo_sym_df_weekdays <-
+  lena_18mo_sym_df %>% 
+  filter(
+    day_type == "weekday"
+  )
+
+lena_18mo_sym_int_awc_weekdays <- 
+  lm(
+    itsea_symptoms ~ 
+      crisys_total_6mo_win * awc_prop,
+    data = lena_18mo_sym_df_weekdays, 
+    contrasts = (contrasts(lena_18mo_sym_df$crisys_median_factor) = c(-1,1)
+                 )
+  )
+summary(lena_18mo_sym_int_awc_weekdays)
+```
+
 #visualize interactions
 ```{r}
+
+count(lena_18mo_sym_df, crisys_median_split)
+
 lena_18mo_sym_df %>%
-ggplot(aes(itsea_symptoms, awc_prop, color = crisys_total_6mo_win)) +
-geom_point() +
-geom_smooth(method ="lm")
+  filter(
+    !is.na(crisys_median_split)
+  ) %>% 
+  ggplot(aes(awc_prop, itsea_symptoms, color = crisys_median_split)) +
+  geom_point() +
+  geom_smooth(method ="lm")
 ```
 #Regression diagnostics
 ```{r}
@@ -180,6 +283,13 @@ outlierTest(lena_18mo_sym_int_awc) # Bonferonni p-value for most extreme obs
 #not sure why this didn't work
 qqPlot(lena_18mo_sym_int_awc, main="QQ Plot") #qq plot for studentized resid 
 leveragePlots(lena_18mo_sym_int_awc) # leverage plots
+
+#calculate standardized estimates
+library(sjstats)
+#no covs model
+std_beta(lena_18mo_sym_int_awc)
+#covs model
+std_beta(lena_18mo_sym_int_awc_covs)
 
 # Normality of Residuals
 # qq plot for studentized resid
@@ -202,5 +312,13 @@ sqrt(vif(lena_18mo_sym_int_awc)) > 2 # problem?
 library(gvlma)
 gvmodel <- gvlma(lena_18mo_sym_int_awc) 
 summary(lena_18mo_sym_int_awc)
+```
+#olsrr diagnostics - not working
+```{r}
+# install.packages("olsrr")
+# ols_regress(itsea_symptoms ~ 
+#       crisys_total_6mo_win * awc_prop,
+#     data = lena_18mo_sym_df)
+# ols_plot_diagnostics(lena_18mo_sym_int_awc)
 ```
 
