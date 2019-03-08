@@ -698,60 +698,89 @@ mbcdi_recept_vars <-
   select(contains("__1")) %>% 
   names()
 
+```
+##deal with cases where ps endorse both "understands" and "understands and says"
+```{r}
+#base r method to do this: 
+q_18month_scored <- data.frame(q_18month_scored)
+#list of variable names
+rv <- names(q_18month_scored)[grep("mbcdi_.+___1", names(q_18month_scored))]
+ev <- names(q_18month_scored)[grep("mbcdi_.+___2", names(q_18month_scored))]
+
+for(x in 1:100){
+  q_18month_scored[,c(paste(rv[x],"_ev",sep=''))] <-q_18month_scored[,c(rv[x])]
+  q_18month_scored[
+    q_18month_scored[,c(rv[x])] == 1 & q_18month_scored[,c(ev[x])] == 1,
+    c(paste(rv[x],"_ev",sep=''))] <- 0
+}
+
+#diagnostics/visualizing 
+# names(q_18month_scored)
+# cbind(q_18month_scored$mbcdi_1___1,q_18month_scored$mbcdi_1___2,q_18month_scored$mbcdi_1___1_ev)
+# 
+# rv_only <- names(q_18month_scored)[grep("mbcdi_.+___1_ev", names(q_18month_scored))]
+
+
+##attempting to figure out dplyr method - currently unsucessful 
+# lapply(a, as.numeric)
+# 
+# q_18month_scored <-
+#   q_18month_scored %>% 
+#   mutate_at(
+#     .vars = vars(lapply(mbcdi_recept_vars, as.numeric)),
+#     .funs = case_when(
+#       vars(lapply(mbcdi_recept_vars, as.numeric)) == 1 & vars(lapply(mbcdi_express_vars), as.numeric) == 1 ~ 0)
+#   )
+
+# for (i in mbcdi_recept_vars) {
+#   value_2 <- str_replace(i, "__1", "__2")
+#   
+#   q_18month_scored %>%
+#     mutate(
+#       i_comb = if_else(
+#         i == 1 | value_2 == 1, 1, 0
+#       )
+#     )
+# }
+
+# recode_mbcdi_recept <- function(df, value) {
+# 
+#   value_2 <- str_replace(value, "__1", "__2")
+#   
+#   df %>%
+#     mutate(
+#       value_comb = if_else(
+#         value == 1 | value_2 == 1, 1, 0
+#       )
+#     )
+#   
+# }
+# 
+# recode_mbcdi_recept(q_18month_scored, "mbcdi_1___1")
+# 
+# q_18month_scored <-
+#   q_18month_scored %>% 
+#   mutate(
+#     mbcdi_recept_only = 
+#       map_dbl(
+#         select(., mbcdi_recept_vars),
+#         function(...) recode_mbcdi_recept(c(...))
+#         )
+#   )
+
+mbcdi_express_vars[[1]]
+
+
+```
+#make final scores
+```{r}
 q_18month_scored$mbcdi_express_total <-
   rowMeans(subset(q_18month_scored, select = c(mbcdi_express_vars)), na.rm = T)*100
 
 q_18month_scored$mbcdi_receptonly_total <-
-  rowMeans(subset(q_18month_scored, select = c(mbcdi_recept_vars)), na.rm = T)*100
+  rowMeans(subset(q_18month_scored, select = c(rv_only)), na.rm = T)*100
 
 q_18month_scored$mbcdi_101 = recode(q_18month_scored$mbcdi_101, "1"=0, "2"=1, "3"=2)
-
-#deal with cases where ps endorse both "understands" and "understands and says"
-
-for (i in mbcdi_recept_vars) {
-  value_2 <- str_replace(i, "__1", "__2")
-  
-  q_18month_scored %>%
-    mutate(
-      i_comb = if_else(
-        i == 1 | value_2 == 1, 1, 0
-      )
-    )
-}
-
-recode_mbcdi_recept <- function(df, value) {
-
-  value_2 <- str_replace(value, "__1", "__2")
-  
-  df %>%
-    mutate(
-      value_comb = if_else(
-        value == 1 | value_2 == 1, 1, 0
-      )
-    )
-  
-}
-
-recode_mbcdi_recept(q_18month_scored, "mbcdi_1___1")
-
-q_18month_scored <-
-  q_18month_scored %>% 
-  mutate(
-    mbcdi_recept_only = 
-      map_dbl(
-        select(., mbcdi_recept_vars),
-        function(...) recode_mbcdi_recept(c(...))
-        )
-  )
-    
-
-q_18month_scored <-
-  q_18month_scored %>% 
-  mutate_at(
-    mbcdi_recept_vars,
-    case_when(
-      mbcdi_express_vars == 1 ~ 0)
-  )
 
 q_18month_scored <-
   q_18month_scored %>% 
@@ -760,6 +789,7 @@ q_18month_scored <-
     mbcdi_combine = mbcdi_101
   ) 
 ```
+
 ##Select data for lena_18mo_symptoms project
 ```{r}
 q18month_symp <-
@@ -808,6 +838,7 @@ q18month_scores <-
   select(
     ID,
     survey_date,
+    secondlang_18mo,
     itsea_activity,
     itsea_agress,
     itsea_depp,
@@ -829,8 +860,11 @@ q18month_scores <-
     by = "ID"
     )
 
-write_csv(q18month_scores, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scored_20190304.csv")
+write_csv(q18month_scores, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scored_20190307.csv") #this one just has the calculated scores
 
-#note: norm scoring was done manually after this step
+write_csv(q_18month_scored, "~/Desktop/lena_18mo_symptoms/Data/q_18month_20190306.csv") #this one has all the original variables as well as the scores
+
 ```
+#note: MBCDI norm scoring was done manually after this step, using the documents "mbcdi_vocab_production_male_norms.csv" and "mbcdi_vocab_production_female_norms.csv"
+
 
