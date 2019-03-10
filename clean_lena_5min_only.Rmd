@@ -1,39 +1,33 @@
 ---
-title: "Clean LENA 5 min data"
+title: "Clean LENA 5-minute data"
 output: html_notebook
 ---
 
-##Load data
+## Environment set up
+
 ```{r load_data}
 library(tidyverse)
 library(lubridate)
 library(hms)
 
-#daily files
-#lena_daily_file_1 <- "~/Desktop/BABIES/r01_winter_2019/data/LENA Export (Daily) 20180316 154518.csv"
-lena_daily_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENA Export (Daily) 20180316 154518_ALL.csv"
+lena_5min_file_1 <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/LENAExport_5Minute_20181220_cleaned.csv"
+lena_5min_file_2 <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/LENAExport_5Minute_new_20190204.csv"
 
-#lena_daily_file_2 <- "~/Desktop/BABIES/r01_winter_2019/data/LENA Export (Daily) 20181128 153328.csv"
-lena_daily_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENA Export (Daily) 20181128 153328.csv"
-lena_daily_file_3 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_Daily_new_20190206.csv"
-
-#5-minute files
-#lena_5min_file_1 <- "~/Desktop/BABIES/r01_winter_2019/data/LENAExport_5Minute_20181220.csv"
-lena_5min_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_20181220_cleaned.csv"
-lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_new_20190204.csv"
+#lena_5min_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_20181220_cleaned.csv"
+#lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_new_20190204.csv"
 
 
-#lena_5min_files_2 <- "~/Desktop/BABIES/r01_winter_2019/data/individual_5min"
-lena_5min_files_2 <- "~/Desktop/lena_18mo_symptoms/Data/individual_5min_lsk_format_cleaned"
+lena_5min_files <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/individual_5min_format_cleaned"
+#lena_5min_files_2 <- "~/Desktop/lena_18mo_symptoms/Data/individual_5min_lsk_format_cleaned"
 
-lena_followup_long_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_long_20190216.csv"
-lena_followup_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_cs_20190216.csv"
+#lena_followup_long_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_long_20190216.csv"
+#lena_followup_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_cs_20190216.csv"
 
 lena_5min_files_df <-
   tibble(
     path = 
       list.files(
-        path = lena_5min_files_2,
+        path = lena_5min_files,
         all.files = TRUE,
         #pattern = "^LENA Export (5 Minute) \\d{3}_\\d{6}.csv$",
         no.. = TRUE,
@@ -44,8 +38,9 @@ lena_5min_files_df <-
     str_detect(path, "/.DS_Store") == FALSE
   )
 ```
-#5 min data
-#Reformat sp 5 min data
+
+# Read in and reformat 5 minute data
+
 ```{r}
 lena_5min_sp <-
   read_csv(lena_5min_file_2) %>% 
@@ -97,7 +92,8 @@ lena_5min_sp <-
   )
 ```
 
-# Read in 5-minute data from Pro license 2 (2018 file) and SP
+## Read in 5-minute data from Pro license 2 (2018 file) and SP
+
 ```{r warning=FALSE}
 lena_5min <-
   read_csv(lena_5min_file_1) %>% 
@@ -130,7 +126,9 @@ lena_5min <-
     -dob
   )
 ```
-#Read in data from individual files (Pro license 1)
+
+## Read in data from individual files (Pro license 1)
+
 ```{r warning=FALSE}
 lena_5min2 <-
   lena_5min_files_df %>%
@@ -187,7 +185,8 @@ lena_5min2 <-
     -dob
   )
 ```
-#combine all data
+
+## Combine all data
 ```{r}
 lena_5min <-
   lena_5min %>% 
@@ -195,8 +194,9 @@ lena_5min <-
   arrange(ID)
 ```
 
-## Clean and wrangle 5-minute data (generate prop and daily rate variables)
-#conditions to filter on: age between 5 and 8 months at time of recording, duration of recording at least 8 hours
+# Clean and wrangle 5-minute data 
+Conditions to filter on: age between 5 and 8 months at time of recording, duration of recording at least 8 hours.
+
 ```{r}
 lena_5min_cl <- 
   lena_5min %>% 
@@ -210,20 +210,23 @@ lena_5min_cl <-
   group_by(ID, date_record, age) %>% 
   summarise(
     duration = sum(duration),
-    awc_depend = sum(AWC.Actual >= 1),
-    ctc_depend = sum(CTC.Actual >= 1),
-    cvc_depend = sum(CVC.Actual >= 1),
+    awc_depend_sum = sum(AWC.Actual >= 1),
+    ctc_depend_sum = sum(CTC.Actual >= 1),
+    cvc_depend_sum = sum(CVC.Actual >= 1),
     awc_total = sum(AWC.Actual),
     ctc_total = sum(CTC.Actual),
-    cvc_total = sum(CVC.Actual)
+    cvc_total = sum(CVC.Actual),
+    awc_max = max(AWC.Actual),
+    ctc_max = max(CTC.Actual),
+    cvc_max = max(CVC.Actual)
   ) %>% 
   mutate(
     awc_daily_rate = awc_total/duration, #daily AWC rate
     ctc_daily_rate = ctc_total/duration, #daily CTC rate
     cvc_daily_rate = cvc_total/duration, #daily CVC rate
-    awc_prop = (awc_depend) / ((duration * 60) / 5), #proportion of 5 minute segments with AWC
-    ctc_prop = (ctc_depend) / ((duration * 60) / 5), #proportion of 5 minute segments with CTC 
-    cvc_prop = (cvc_depend)/ ((duration * 60) / 5)
+    awc_depend_prop = (awc_depend_sum) / ((duration * 60) / 5), #proportion of 5 minute segments with AWC
+    ctc_depend_prop = (ctc_depend_sum) / ((duration * 60) / 5), #proportion of 5 minute segments with CTC 
+    cvc_depend_prop = (cvc_depend_sum) / ((duration * 60) / 5)
   ) %>% 
   filter(
     (age >= 5 & age <= 8),
@@ -238,7 +241,7 @@ lena_5min_cl <-
   ungroup()
 ```
 
-#create wideform dataframe with 1 row per ID
+# Create wideform data frame with 1 row per ID
 ```{r}
 lena_5min_cl %>% 
   count(day)
@@ -264,37 +267,64 @@ lena_5min_day2_rename <-
 lena_5min_cl_wf <-
   lena_5min_day1_rename %>% 
   left_join(lena_5min_day2_rename, by = "ID") %>% 
+  group_by(ID) %>% 
   mutate(
-    #day_type_D1 = wday(date_record_D1),
-    #day_type_D1 = if_else(day_type_D1 == 1 | day_type_D1 == 7, "weekend", "weekday"),
-    #day_type_D2 = wday(date_record_D2),
-    #day_type_D2 = if_else(day_type_D2 == 1 | day_type_D2 == 7, "weekend", "weekday")
-  )
-
-lena_5min_cl_wf %>% 
-  filter(
-    awc_prop_D1 > .2,
-    awc_prop_D2 > .2
-    ) %>% 
-  ggplot(aes(awc_prop_D1, awc_prop_D2)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-glimpse(lena_5min_cl_wf)
+    ctc_max_D1D2 = max(ctc_max_D1, ctc_max_D2, na.rm = TRUE)
+  ) %>% 
+  ungroup()
 ```
-##identifying weird recordings and what to do about them
-```{r}
-##Deleted from raw data: 1052 5/8/18 recording, 62 Day 1 on 7/11/17 (from LENAExport_5minute_20181220)
-##Filter from analyses: 56 Day 1, 110 Day 2, use 106 day 1 (day 2 not typical), use 1052 day 2 (day 1 "went to zoo for 90 min" but doesn't say when), use 1045 day 2 (day 1 not whole day), 1010 use day 2 (mother worked 5 hrs day 1)
 
-##Deleting data with crowds -cleaned from raw data (files renamed "_cleaned")
-#recordings with crowds --
-  #cs: 27 9/18/16 15-16:00 (5 min files), 119 4/19/18 11:30-12:30 (20181220), 135 9/13/18 13-13:30 (20181220), 38 2/10/17 16-18 (20181220), 48 3/5/17 11-13 (20181220), 61 7/18/17 13-15 (20181220), 62 7/30/17 9:30-10:30 (2018), 76 8/21/17 15-16 (2018), 2 day 1 19:30-10 (5 min files), 28 day 1 13-15 (5 min files), 64 8/8/17 11-11:30 (2018), 75 9/15/17 12-15 (2018), 87 9/11/17 14:40-16:40 (2018), 105 3/15/18 16:45-16:55 (2018), 27 10/2/16 11-13 (5 min files), 119 5/12/18 13:30-17:30 (2018), 135 9/23/18 9-10:45 (2018), 12 day 2 12:20-13:50 (5 min files), 45 4/22/17 10:30-11:30 (2018), 50 3/18/17 9:45-12:45 (not completed correctly; entirely deleted), 60 7/16/17 14:30-16:30 (2018), 72 8/6/17 13-16 (2018), 94 4/15/18 12:30-14 (2018), 106 4/1/18 14:40-18:40 (2018), 115 4/14/18 13-14:30 (2018)
-  #long: 1029 4/6/18 18:40-20:40 (2018), 1021 6/25/18 18-19:30 (2018), 1078 6/15/18 17:30-19:30 (2018), 1028 4/17/18 15:30-16 (2018), 1036 3/22/18 13:15-15:15 (2018), 1045 4/22/18 10-12 (2018), 1010 2/8/18 9:15-14:15, 1028 5/6/18 15-19 (2018), 1036 5/5/18 8-9 16-17 (2018), 1045 5/19/18 10:30-12:30 (2018), 1011 5/13/18 15-16 (2018), 1019 5/20/18 16-17 (2018), 1023 5/12/18 11-13 (2018), 1060 9/29/18 17:30-18:30 (2018)
+## Identifying problematic recordings:
 
+__Deleted from raw data:__ 1052 5/8/18 recording, 62 Day 1 on 7/11/17 (from LENAExport_5minute_20181220). 
+__Filter from analyses:__ 56 Day 1, 110 Day 2, use 106 day 1 (day 2 not typical), use 1052 day 2 (day 1 "went to zoo for 90 min" but doesn't say when), use 1045 day 2 (day 1 not whole day), 1010 use day 2 (mother worked 5 hrs day 1)
 
-```
-#count weekdays vs weekends
+__Delete data with crowds:__ -cleaned from raw data (files renamed "_cleaned"). Recordings with crowds:
+
+cross-sectional:
+27 9/18/16 15-16:00 (5 min files)
+119 4/19/18 11:30-12:30 (20181220)
+135 9/13/18 13-13:30 (20181220)
+38 2/10/17 16-18 (20181220)
+48 3/5/17 11-13 (20181220)
+61 7/18/17 13-15 (20181220)
+62 7/30/17 9:30-10:30 (2018), 
+76 8/21/17 15-16 (2018)
+2 day 1 19:30-10 (5 min files)
+28 day 1 13-15 (5 min files)
+64 8/8/17 11-11:30 (2018)
+75 9/15/17 12-15 (2018)
+87 9/11/17 14:40-16:40 (2018)
+105 3/15/18 16:45-16:55 (2018)
+27 10/2/16 11-13 (5 min files)
+19 5/12/18 13:30-17:30 (2018)
+135 9/23/18 9-10:45 (2018)
+12 day 2 12:20-13:50 (5 min files)
+45 4/22/17 10:30-11:30 (2018)
+50 3/18/17 9:45-12:45 (not completed correctly; entirely deleted)
+60 7/16/17 14:30-16:30 (2018)
+72 8/6/17 13-16 (2018)
+94 4/15/18 12:30-14 (2018)
+106 4/1/18 14:40-18:40 (2018)
+115 4/14/18 13-14:30 (2018)
+
+longitudinal: 
+1029 4/6/18 18:40-20:40 (2018)
+1021 6/25/18 18-19:30 (2018)
+1078 6/15/18 17:30-19:30 (2018)
+1028 4/17/18 15:30-16 (2018)
+1036 3/22/18 13:15-15:15 (2018)
+1045 4/22/18 10-12 (2018)
+1010 2/8/18 9:15-14:15
+1028 5/6/18 15-19 (2018)
+1036 5/5/18 8-9 16-17 (2018)
+1045 5/19/18 10:30-12:30 (2018)
+1011 5/13/18 15-16 (2018)
+1019 5/20/18 16-17 (2018)
+1023 5/12/18 11-13 (2018)
+1060 9/29/18 17:30-18:30 (2018)
+
+# Count weekdays vs weekends
 ```{r}
 lena_5min_cl_wf %>% 
   count(day_type_D1)
@@ -304,19 +334,19 @@ lena_5min_cl_wf %>%
 
 lena_5min_cl_wf %>% 
   filter(day_type_D2 == "weekend" | day_type_D1 == "weekend")
-
-
-#Conclusion: 54 with weekend recording, so need to covary for day type (can't just use weekend from everyone); also many more weekends in day 2 than day 1
 ```
-#summarize proportion variables
+Conclusion: 54 with weekend recording, so need to covary for day type (can't just use weekend from everyone); also many more weekends in day 2 than day 1
+
+# Summarize proportion variables
 ```{r}
 lena_5min_cl_wf %>% 
   summarise_at(
-    vars(awc_prop_D1, ctc_prop_D1),
+    vars(awc_depend_prop_D1, ctc_depend_prop_D1),
     funs(min, max, mean, sd), na.rm = TRUE
   )
 ```
-#read in LENA follow up data
+
+# Read in LENA follow up data
 ```{r}
 lena_followup <-
   read_csv(lena_followup_long_file) %>% 
@@ -337,7 +367,8 @@ lena_followup <-
 #t-test weekday vs. weekend and percent of time spent w mom
 t.test(percent_mother ~ lena_weekend, data = lena_followup)
 ```
-###merge relevant follow up qs data with cleaned & filtered lena data - **unfinished**
+
+### Merge relevant follow up qs data with cleaned & filtered lena data - **unfinished**
 ```{r}
 ##add percent_mother variable to lena data to see if difference weekday vs. weekend within the subset of recordings we've filtered, joining on ID and day_type
 
@@ -363,8 +394,10 @@ left_join(
 
 ```{r}
 #all data
-write_csv(lena_5min_cl, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byday_20190202.csv")
-write_csv(lena_5min_cl_wf, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byID_20190202.csv")
+#write_csv(lena_5min_cl, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byday_20190202.csv")
+#write_csv(lena_5min_cl_wf, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byID_20190202.csv")
+write_csv(lena_5min_cl_wf, "~/Desktop/BABIES/data/lena_data/lena_cleaned_wf_20190308.csv")
+
 
 #Filtered data to use for lena_18month_symptoms project 
 #IDs to use day 2: 
@@ -384,5 +417,7 @@ lena_5min_cl_filtered <-
 
   
 write_csv(lena_5min_cl_filtered, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190202.csv")
+
+
   
 ```
