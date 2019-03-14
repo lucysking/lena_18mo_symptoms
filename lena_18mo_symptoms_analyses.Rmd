@@ -244,6 +244,20 @@ summary(lena_18mo_sym_int_awc_covs)
 #R squared: The R-squared (R2) statistic provides a measure of how well the model is fitting the actual data. It takes the form of a proportion of variance. R2 is a measure of the linear relationship between our predictor variable and our response / target variable. It always lies between 0 and 1
 #F-statistic is a good indicator of whether there is a relationship between our predictor and the response variables. The further the F-statistic is from 1 the better it is. However, how much larger the F-statistic needs to be depends on both the number of data points and the number of predictors.
 ```
+#test awc_daily_rate
+```{r}
+lena_18mo_sym_int_awc_rate <- 
+  lm(
+    itsea_symptoms ~ 
+      crisys_total_6mo_win * awc_daily_rate,
+    data = lena_18mo_sym_df, 
+    contrasts = (contrasts(lena_18mo_sym_df$crisys_median_factor) = c(-1,1)
+                 )
+    )
+summary(lena_18mo_sym_int_awc_rate)
+```
+
+
 #run model with just weekdays and see if results hold
 ```{r}
 lena_18mo_sym_df_weekdays <-
