@@ -23,6 +23,7 @@ crisys_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190202.csv"
 q_18mo_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190202.csv"
 demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190131.csv"
 lena_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190202.csv"
+lena_follow_and_data_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190202.csv"
   
 ```
 #Read in and join data
@@ -290,6 +291,27 @@ lena_18mo_sym_df %>%
   geom_point() +
   geom_smooth(method ="lm")
 ```
+#see if percent_mother associated with awc_depend_prop
+```{r}
+lena_followup_and_data <-
+  read_csv(lena_follow_and_data_file)
+
+lena_momtime_awc <- 
+  lm(
+    awc_depend_prop ~ percent_mother,
+    data = lena_followup_and_data 
+    )
+summary(lena_momtime_awc)
+#association not significant (p = .69)
+
+#visualize regression
+lena_followup_and_data %>% 
+ggplot(aes(percent_mother, awc_depend_prop)) +
+  geom_point() +
+  geom_smooth(method ="lm")
+```
+
+
 #Regression diagnostics
 ```{r}
 #assessing outliers
@@ -309,13 +331,13 @@ std_beta(lena_18mo_sym_int_awc_covs)
 # qq plot for studentized resid
 qqPlot(lena_18mo_sym_int_awc, main="QQ Plot")
 # distribution of studentized residuals
-library(MASS)
-sresid <- studres(lena_18mo_sym_int_awc) 
-hist(lena_18mo_sym_int_awc, freq=FALSE, 
-   main="Distribution of Studentized Residuals") #error - x must be numeric
-xfit<-seq(min(sresid),max(sresid),length=40) 
-yfit<-dnorm(xfit) 
-lines(xfit, yfit)
+# library(MASS)
+# sresid <- studres(lena_18mo_sym_int_awc) 
+# hist(lena_18mo_sym_int_awc, freq=FALSE, 
+#    main="Distribution of Studentized Residuals") #error - x must be numeric
+# xfit<-seq(min(sresid),max(sresid),length=40) 
+# yfit<-dnorm(xfit) 
+# lines(xfit, yfit)
 
 # Evaluate Collinearity
 vif(lena_18mo_sym_int_awc) # variance inflation factors 
