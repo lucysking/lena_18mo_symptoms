@@ -10,18 +10,18 @@ library(tidyverse)
 library(lubridate)
 library(hms)
 
-lena_5min_file_1 <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/LENAExport_5Minute_20181220_cleaned.csv"
-lena_5min_file_2 <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/LENAExport_5Minute_new_20190204.csv"
+#lena_5min_file_1 <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/LENAExport_5Minute_20181220_cleaned.csv"
+#lena_5min_file_2 <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/LENAExport_5Minute_new_20190204.csv"
 
-#lena_5min_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_20181220_cleaned.csv"
-#lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_new_20190204.csv"
+lena_5min_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_20181220_cleaned.csv"
+lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_new_20190204.csv"
 
 
-lena_5min_files <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/individual_5min_format_cleaned"
-#lena_5min_files_2 <- "~/Desktop/lena_18mo_symptoms/Data/individual_5min_lsk_format_cleaned"
+#lena_5min_files <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/individual_5min_format_cleaned"
+lena_5min_files <- "~/Desktop/lena_18mo_symptoms/Data/individual_5min_lsk_format_cleaned"
 
-#lena_followup_long_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_long_20190216.csv"
-#lena_followup_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_cs_20190216.csv"
+lena_followup_long_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_long_datecleaned_20190216.csv"
+lena_followup_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_cs_datecleaned_20190216.csv"
 
 lena_5min_files_df <-
   tibble(
@@ -367,39 +367,9 @@ lena_followup <-
 #t-test weekday vs. weekend and percent of time spent w mom
 t.test(percent_mother ~ lena_weekend, data = lena_followup)
 ```
-
-### Merge relevant follow up qs data with cleaned & filtered lena data - **unfinished**
+#Filter data for use in lena_18mo_symptoms project analyses
+filtering criteria: Day 1, removing 110
 ```{r}
-##add percent_mother variable to lena data to see if difference weekday vs. weekend within the subset of recordings we've filtered, joining on ID and day_type
-
-lena_5min_cl_filtered <-
-  lena_5min_cl_filtered %>% 
-  mutate(
-    day_weekend_num = if_else(
-      day_type == "weekend",
-      1, 0
-    )
-  )
-  
-
-left_join(
-    lena_followup
-  ) %>% 
-  select(
-    percent_mother
-  )
-```
-
-##Write file with relevant data 
-
-```{r}
-#all data
-#write_csv(lena_5min_cl, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byday_20190202.csv")
-#write_csv(lena_5min_cl_wf, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byID_20190202.csv")
-write_csv(lena_5min_cl_wf, "~/Desktop/BABIES/data/lena_data/lena_cleaned_wf_20190308.csv")
-
-
-#Filtered data to use for lena_18month_symptoms project 
 #IDs to use day 2: 
 # day 2: 110 (put device in pocket rather than chest day 1), 106
 
@@ -414,9 +384,51 @@ lena_5min_cl_filtered <-
     day == 1
   )
   
+```
 
+### Merge relevant follow up qs data with cleaned & filtered lena data 
+```{r}
+##add percent_mother variable to lena data to see if difference weekday vs. weekend within the subset of recordings we've filtered, joining on ID and day_type
+
+lena_5min_cl_filtered <-
+  lena_5min_cl_filtered %>% 
+  mutate(
+    day_weekend_num = if_else(
+      day_type == "weekend",
+      1, 0
+    )
+  )
   
+#merge data on lena recording date 
+lena_followup_and_data <- 
+  lena_followup %>% 
+  mutate(
+    date_record = lenaday_date,
+    date_record = parse_date_time(date_record, c("ymd", "mdy"))
+  ) %>% 
+  left_join(
+    lena_5min_cl_filtered,
+    by = "ID", "date_record"
+  ) %>% 
+  select(
+    ID,
+    date_record.x,
+    awc_depend_prop,
+    percent_mother
+  )
+
+```
+
+##Write file with relevant data 
+
+```{r}
+#all data
+#write_csv(lena_5min_cl, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byday_20190202.csv")
+#write_csv(lena_5min_cl_wf, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byID_20190202.csv")
+
+write_csv(lena_5min_cl_wf, "~/Desktop/BABIES/data/lena_data/lena_cleaned_wf_20190308.csv")
 write_csv(lena_5min_cl_filtered, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190202.csv")
+write_csv(lena_followup_and_data, "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190202.csv")
 
 
   
