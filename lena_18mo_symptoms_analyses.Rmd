@@ -386,13 +386,13 @@ summary(lena_18mo_sym_int_awc)
 #olsrr diagnostics
 #standardized betas 
 ```{r}
-install.packages("olsrr")
 library(olsrr)
 ols_regress_model <-
 ols_regress(itsea_symptoms ~ 
        crisys_total_6mo_win * awc_prop_centered,
        data = lena_18mo_sym_df)
- ols_plot_diagnostics(lena_18mo_sym_int_awc)
+print(ols_regress_model)
+# ols_plot_diagnostics(lena_18mo_sym_int_awc) - not really sure why this isn't working
  #standardized betas: interaction term: -.341 (-.317, -.044); awc_prop_centered: -.150 (-.287, 1.655); crisys_total_6mo_win: .237 (-.001, .027)
  
  
