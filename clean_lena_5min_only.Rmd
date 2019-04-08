@@ -224,9 +224,9 @@ lena_5min_cl <-
     awc_daily_rate = awc_total/duration, #daily AWC rate
     ctc_daily_rate = ctc_total/duration, #daily CTC rate
     cvc_daily_rate = cvc_total/duration, #daily CVC rate
-    awc_depend_prop = (awc_depend_sum) / ((duration * 60) / 5), #proportion of 5 minute segments with AWC
-    ctc_depend_prop = (ctc_depend_sum) / ((duration * 60) / 5), #proportion of 5 minute segments with CTC 
-    cvc_depend_prop = (cvc_depend_sum) / ((duration * 60) / 5)
+    awc_prop = (awc_depend_sum) / ((duration * 60) / 5), #proportion of 5 minute segments with AWC
+    ctc_prop = (ctc_depend_sum) / ((duration * 60) / 5), #proportion of 5 minute segments with CTC 
+    cvc_prop = (cvc_depend_sum) / ((duration * 60) / 5)
   ) %>% 
   filter(
     (age >= 5 & age <= 8),
@@ -341,7 +341,7 @@ Conclusion: 54 with weekend recording, so need to covary for day type (can't jus
 ```{r}
 lena_5min_cl_wf %>% 
   summarise_at(
-    vars(awc_depend_prop_D1, ctc_depend_prop_D1),
+    vars(awc_prop_D1, ctc_prop_D1),
     funs(min, max, mean, sd), na.rm = TRUE
   )
 ```
@@ -413,7 +413,7 @@ lena_followup_and_data <-
   select(
     ID,
     date_record.x,
-    awc_depend_prop,
+    awc_prop,
     percent_mother
   )
 
@@ -426,7 +426,7 @@ lena_followup_and_data <-
 #write_csv(lena_5min_cl, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byday_20190202.csv")
 #write_csv(lena_5min_cl_wf, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byID_20190202.csv")
 
-write_csv(lena_5min_cl_wf, "~/Desktop/BABIES/data/lena_data/lena_cleaned_wf_20190308.csv")
+#write_csv(lena_5min_cl_wf, "~/Desktop/BABIES/data/lena_data/lena_cleaned_wf_20190308.csv")
 write_csv(lena_5min_cl_filtered, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190202.csv")
 write_csv(lena_followup_and_data, "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190202.csv")
 
