@@ -29,6 +29,7 @@ q_18mo_ages_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_ages.csv"
 demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190131.csv"
 lena_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190202.csv"
 lena_follow_and_data_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190202.csv"
+baby_raceth_file <- "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv"
   
 ```
 #Read in and join data
@@ -62,6 +63,12 @@ lena_18mo_sym_df <-
         mom_age_6mo_visit,
         mom_race,
         mom_ethnicity
+      )
+  ) %>% 
+  left_join(
+    read_csv(baby_raceth_file) %>% 
+      select(
+        -childrace_describe
       )
   ) %>% 
   left_join(
@@ -133,12 +140,14 @@ count(lena_18mo_sym_df, day_type)
 ```
 #Look at means, std, min, max
 ```{r}
+summaries_continuous <-
 lena_18mo_sym_df %>% 
   summarise_at(
     vars(
       itsea_competence, 
       itsea_symptoms, 
       crisys_total_6mo_win, 
+      crisys_total_6mo,
       awc_prop, 
       ctc_prop, 
       cvc_prop
@@ -408,9 +417,18 @@ lena_18mo_sym_df %>%
 lena_18mo_sym_df %>% 
   count(mom_ethnicity) %>% 
   mutate(per = n / sum(n))
+
+lena_18mo_sym_df %>% 
+  count(child_ethnicity) %>% 
+  mutate(per = n / sum(n))
   
 lena_18mo_sym_df %>% 
   count(mom_race) %>% 
+  mutate(per = n / sum(n)) %>% 
+  arrange(desc(per))
+
+lena_18mo_sym_df %>% 
+  count(child_race) %>% 
   mutate(per = n / sum(n)) %>% 
   arrange(desc(per))
 
@@ -453,9 +471,18 @@ lena_18mo_sym_df_complete %>%
 lena_18mo_sym_df_complete %>% 
   count(mom_ethnicity) %>% 
   mutate(per = n / sum(n))
+
+lena_18mo_sym_df_complete %>% 
+  count(child_ethnicity) %>% 
+  mutate(per = n / sum(n))
   
 lena_18mo_sym_df_complete %>% 
   count(mom_race) %>% 
+  mutate(per = n / sum(n)) %>% 
+  arrange(desc(per))
+
+lena_18mo_sym_df %>% 
+  count(child_race) %>% 
   mutate(per = n / sum(n)) %>% 
   arrange(desc(per))
 
