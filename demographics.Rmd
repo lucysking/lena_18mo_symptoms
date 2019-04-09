@@ -34,6 +34,34 @@ visit_date_long_6mo_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_long_6
 visit_dates_long_t1t2_file <- "~/Desktop/lena_18mo_symptoms/Data/long_t1t2_dates_20190131.csv"
 
 ```
+#get baby race and ethnicity (workaround for full script w dates not working)
+```{r}
+baby_raceth <-
+  read_csv(demo_cs_file) %>% 
+  select(
+    ID = record_id,
+    child_race,
+    childrace_describe,
+    child_ethnicity
+  ) %>% 
+  mutate(
+    ID = as.integer(ID)
+  ) %>% 
+  bind_rows(
+    read_csv(demo_baby_long_file) %>% 
+      select(
+        ID = record_id,
+        child_race = baby_race,
+        childrace_describe = baby_race_describe,
+        child_ethnicity = baby_ethnicity
+      ) %>% 
+      mutate(
+        ID = as.integer(ID)
+      )
+  )
+
+write_csv(baby_raceth, "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv")
+```
 
 ```{r}
 ##Read in and join data 
@@ -123,7 +151,10 @@ demo <-
     marital_explain,
     annual_income,
     ppl_in_home_adults,
-    ppl_in_home_allchild
+    ppl_in_home_allchild,
+    child_race,
+    childrace_describe,
+    child_ethnicity
   ) %>% 
   mutate(
     ID = as.integer(ID),
@@ -152,7 +183,10 @@ demo <-
        read_csv(demo_baby_long_file) %>% 
         select(
           ID = record_id,
-          baby_sex
+          baby_sex,
+          baby_ethnicity,
+          baby_race,
+          baby_race_describe
         ) %>% 
         mutate(
           ID = as.integer(ID)
