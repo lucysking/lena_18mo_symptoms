@@ -103,7 +103,7 @@ qplot(lena_18mo_sym_df$baby_age_18month,
       geom = "histogram",
       binwidth = .5)
 
-qplot(lena_18mo_sym_df$crisys_total_6mo_win, 
+qplot(lena_18mo_sym_df$crisys_total_6mo, 
       geom = "histogram",
       binwidth = .5)
 
@@ -121,7 +121,7 @@ qplot(lena_18mo_sym_df$baby_age_lena,
 
 qplot(lena_18mo_sym_df$duration, 
       geom = "histogram",
-      binwidth = 2)
+      binwidth = .5)
 
 qplot(lena_18mo_sym_df$awc_prop, 
       geom = "histogram",
@@ -136,6 +136,7 @@ qplot(lena_18mo_sym_df$cvc_prop,
       binwidth = .05)
 
 count(lena_18mo_sym_df, day_type)
+count(lena_18mo_sym_df_complete, day_type)
 
 ```
 #Look at means, std, min, max
@@ -157,6 +158,26 @@ lena_18mo_sym_df %>%
         sd, 
         min, 
         max), 
+    na.rm = TRUE)
+
+summaries_continuous <-
+lena_18mo_sym_df_complete %>% 
+  summarise_at(
+    vars(
+      itsea_competence, 
+      itsea_symptoms, 
+      crisys_total_6mo_win, 
+      crisys_total_6mo,
+      awc_prop, 
+      ctc_prop, 
+      cvc_prop
+      ), 
+    list(
+        ~mean, 
+        ~sd, 
+        ~min, 
+        ~max,
+        ~median), 
     na.rm = TRUE)
 
 #is there a way to reformat this data table?
@@ -401,7 +422,7 @@ lena_18mo_sym_df %>%
     duration,
     mom_age_6mo_visit
     ), 
-    list(~mean, ~sd),
+    list(~mean, ~sd, ~min, ~max),
     na.rm = TRUE)
 
 #counts and percentages for categorical variables - education, ethnicity, race, income
@@ -455,7 +476,7 @@ lena_18mo_sym_df_complete %>%
     duration,
     mom_age_6mo_visit
     ), 
-    list(~mean, ~sd),
+    list(~mean, ~sd, ~min, ~max),
     na.rm = TRUE)
 
 #counts and percentages for categorical variables - education, ethnicity, race, income
@@ -669,11 +690,13 @@ lena_18mo_sym_df %>%
   geom_point() +
   geom_smooth(method ="lm")
 ```
-#see if percent_mother associated with awc_depend_prop
+#examine LENA follow-up data
 ```{r}
+#Within all ps with followup data and awc_prop
 lena_followup_and_data <-
   read_csv(lena_follow_and_data_file)
 
+#see if percent_mother associated with awc_depend_prop
 lena_momtime_awc <- 
   lm(
     awc_prop ~ percent_mother,
@@ -682,6 +705,9 @@ lena_momtime_awc <-
 summary(lena_momtime_awc)
 #association not significant (p = .69)
 
+#see if percent_mother associated with weekday vs weekend
+t.test(lena_follow_complete_data$percent_mother ~ lena_follow_complete_data$day_type)
+
 #cor.test (use spearman's correlation if data is weirdly distributed to check correlation)
 
 #visualize regression
@@ -689,6 +715,37 @@ lena_followup_and_data %>%
 ggplot(aes(percent_mother, awc_prop)) +
   geom_point() +
   geom_smooth(method ="lm")
+
+#report stats on percent_mother
+lena_followup_and_data %>% 
+  summarize_at(
+    vars(
+    percent_mother
+    ), 
+    list(~mean, ~sd, ~min, ~max),
+    na.rm = TRUE)
+
+#Within just subset of ps using for this project
+ 
+lena_follow_complete_data <-
+  lena_18mo_sym_df_complete %>% 
+  left_join(
+    read_csv(lena_follow_and_data_file),
+    by = "ID"
+  )
+
+lena_follow_complete_data %>% 
+  summarize_at(
+    vars(
+    percent_mother
+    ), 
+    list(~mean, ~sd, ~min, ~max),
+    na.rm = TRUE) 
+
+lena_follow_complete_data %>% 
+  count(percent_mother) %>% 
+  mutate(total = sum(!is.na(n)))
+  
 ```
 
 
