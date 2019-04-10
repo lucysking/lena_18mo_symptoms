@@ -414,7 +414,8 @@ lena_followup_and_data <-
     ID,
     date_record.x,
     awc_prop,
-    percent_mother
+    percent_mother,
+    day_type
   )
 
 ```
