@@ -3,45 +3,46 @@ title: "Wrangle LSC-R data"
 output: html_notebook
 ---
 
+NOTE: Prior to cleaning in R, ages of events were cleaned as follows to reflect age of onsent (raw data files remain saved on mooddata):
+
+- Use the earliest age of the event as the value. For example, if a participant reported witnessing an accident at ages 5, 10, 24 years, the age value is "5". 
+
+- If participant reported a range of ages (e.g., 10-15), use the earliest age. 
+
+- If participant reported "all my life" or "all of childhood", the age value is "0".
+
+# Environment set up
 ```{r}
 #Libraries
 library(tidyverse)
 library(psych)
+library(lubridate)
 
 #Parameters
 
-stress_ratings_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/cs6_LSCR_2018-11_12_18_rated_n76_cleaned.xlsx"
+stress_ratings_cs_file1 <- "~/Desktop/BABIES/lena_symptoms/data/cs6_LSCR_2018-11_12_18_rated_n76_cleaned.xlsx"
 
-stress_ratings_long_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_preg_LSCR_2018-10-01_rated.xlsx"
+stress_ratings_cs_file2 <- "~/Desktop/BABIES/lena_symptoms/data/cs6_LSCR_2019-04_08_19_rated_clean.xlsx"
+
+stress_ratings_long_file <- "~/Desktop/BABIES/lena_symptoms/data/long_preg_LSCR_2018-10-01_rated.xlsx"
+
+dates_file <- "~/Desktop/BABIES/lena_symptoms/data/demo_lscr_20190412.csv"
 
 #Functions
 
-winsorize <- function(df, value) {
-  value <- enquo(value)
+source("~/Desktop/BABIES/lena_symptoms/lena_18mo_symptoms/winsorize.R")
+```
 
-  df %>%
-    mutate(
-      value = case_when(
-        !!value > (mean(!!value, na.rm = TRUE) + (3 * sd(!!value, na.rm = TRUE))) ~
-        mean(!!value, na.rm = TRUE) + (3 * sd(!!value, na.rm = TRUE)),
-        !!value < (mean(!!value, na.rm = TRUE) - (3 * sd(!!value, na.rm = TRUE))) ~
-        mean(!!value, na.rm = TRUE) - (3 * sd(!!value, na.rm = TRUE)),
-        TRUE ~ !!value
-      )
-    )
-}
-
-
-
-calc_sev_childhood <- function(dev_stage, sev) { #childhood
-   if_else(
-    dev_stage == "childhood",
-    sev, NA_real_
+```{r}
+dates <-
+  read_csv(dates_file) %>% 
+  mutate(
+    baby_conception_date = baby_due_date - weeks(40),
+    mom_age_conception = (mom_dob %--% baby_conception_date) / years(1),
+    mom_age_babydob = (mom_dob %--% baby_dob) / years(1),
+    mom_age_preg_visit = (mom_dob %--% preg_date) / years(1),
+    mom_age_6mo_visit = (mom_dob %--% sixmonth_date) / years(1)
   )
-}
-
-
-
 ```
 
 
@@ -111,7 +112,7 @@ ICC(lscr_icc)
 ##Calculate T1 total scores
 Total number of types, summed severity, max severity, total numer of pregnancy stressors, pregnancy summed severity, pregnancy max severity 
 
-```{r}
+```{r warning=FALSE}
 calc_preg_sev <- function(preg_exp, sev) { #pregnancy
   case_when(
     preg_exp == 1 ~ sev,
@@ -246,12 +247,19 @@ lscr_preg <-
 
 get frequencies of each type in childhood vs. adulthood and separate sum sev
 get frequencies of childhood maltreatment and sum sev
-```{r}
+```{r warning=FALSE}
 calc_dev_stage <- function(type_age) { #childhood vs. adulthood
   case_when(
     type_age <= 18 ~ "childhood",
     type_age > 18 ~ "adulthood",
     TRUE ~ NA_character_
+  )
+}
+
+calc_sev_childhood <- function(dev_stage, sev) { #childhood
+   if_else(
+    dev_stage == "childhood",
+    sev, NA_real_
   )
 }
 
@@ -351,7 +359,7 @@ lscr_preg <-
 NOTE! life stages are based on when stressors STARTED. Some stressors started prior to conception but are coded as happening in pregnancy because they extended into pregnancy. There is no postnatal stress measured at T1 because T1 is during pregnancy. 
 
 ###identify life stage for each report
-```{r}
+```{r warning=FALSE}
 calc_preg_life_stage <- function(
   type_age, type_preg, mom_age_conception, mom_age_babydob
 ) {
@@ -465,7 +473,7 @@ lscr_preg <-
 ```
 
 ## calculate severity of preconception stressors
-```{r}
+```{r warning=FALSE}
 calc_sev_preconception <- function(life_stage, sev) {
    case_when(
     life_stage == "preconception" ~ sev,
@@ -650,7 +658,7 @@ lscr_preg %>%
 ```
 
 ##T1 frequency of stressors overall
-```{r}
+```{r warning=FALSE}
 N_T1 <- n_distinct(lscr_preg$ID)
 
 lscr_table <-
@@ -728,7 +736,7 @@ lscr_table %>%
 ```
 
 ##T1 frequency of stressors in pregnancy
-```{r}
+```{r warning=FALSE}
 lscr_table_pregnancy_stressors <-
   lscr_preg %>% 
   select(
@@ -783,7 +791,7 @@ lscr_preg %>%
 ```
 
 ##T1 frequency of stressors in childhood
-```{r}
+```{r warning=FALSE}
 lscr_table_childhood_stressors <-
   lscr_preg %>% 
   select(
@@ -863,8 +871,16 @@ lscr_table_childhood_stressors %>%
 ##Read in T3 data
 ```{r}
 lscr_6mo <- 
-  readxl::read_xlsx(stress_ratings_cs_file) %>% 
+  readxl::read_xlsx(stress_ratings_cs_file1) %>% 
   rename(ID = record_id) %>% 
+  select(
+    -contains("date")
+  ) %>% 
+  bind_rows(
+    readxl::read_xlsx(stress_ratings_cs_file2) %>% 
+      rename(ID = record_id) %>% 
+      select(-contains("date"))
+  ) %>% 
   mutate_at(
     vars(contains("preg"), "ID"),
     as.integer
@@ -882,8 +898,9 @@ lscr_6mo <-
         mom_age_babydob
       ),
     by = "ID"
-  )
-  
+  ) 
+
+glimpse(lscr_6mo)
 ``` 
 
 ##Calculate T3 reliability
@@ -943,7 +960,7 @@ ICC(lscr_icc_lk_kh)
 
 ##Calculate T3 total scores
 
-```{r}
+```{r warning=FALSE}
 #save variable names in order to map later
 preg_exp_vars_6mo <- 
   lscr_6mo %>% 
@@ -1070,7 +1087,7 @@ lscr_6mo <-
 
 get frequencies of each type in childhood vs. adulthood and separate sum sev
 get frequencies of childhood maltreatment and sum sev
-```{r}
+```{r warning=FALSE}
 age_vars_6mo <-
   lscr_6mo %>% 
   select(contains("_age")) %>% 
@@ -1299,7 +1316,7 @@ lscr_6mo <-
 
 
 ## calculate severity of preconception stressors
-```{r}
+```{r warning=FALSE}
 lscr_6mo <-
   lscr_6mo %>% 
   mutate(
@@ -1366,7 +1383,7 @@ lscr_6mo <-
 ```
 
 ## calculate severity of postnatal stressors
-```{r}
+```{r warning=FALSE}
 calc_sev_postnatal <- function(life_stage, sev) {
    case_when(
     life_stage == "postnatal" ~ sev,
@@ -1630,6 +1647,8 @@ lscr_table_6mo %>%
   ) %>% 
   arrange(desc(n)) %>% 
   knitr::kable()
+
+
 ```
 
 #T3  frequency of stressors in pregnancy
@@ -1667,9 +1686,13 @@ lscr_table_pregnancy_stressors_6mo %>%
         "expected death of close other",
         "emotional abuse",
         "serious physical illness (self)",
+        "financial problems",
         "robbed/mugged/attacked (self)",
         "other (anything additional)",
+        "parental separation/divorce",
+        "physical abuse",
         "sexual harassment",
+        "other sexual assault",
         "witnessed accident"
       )
     )
@@ -1727,6 +1750,7 @@ lscr_table_childhood_stressors_6mo %>%
         "emotional abuse",
         "arrest/imprisonment of family",
         "domestic violence (childhood)",
+        "arrest/imprisonment (self)",
         "financial problems",
         "robbed/mugged/attacked (self)",
         "other (anything additional)",
@@ -1784,11 +1808,129 @@ lscr_T1lg_6mocs <-
 
 lscr_T1lg_6mocs <- 
   lscr_T1lg_6mocs %>% 
-  winsorize(sum_sev_childhood) %>% 
-  rename(sum_sev_child_win = value) %>% 
-  winsorize(sum_sev_precon) %>% 
-  rename(sum_sev_precon_win = value) 
+  mutate(
+    sum_sev_child_win = winsorize(x = sum_sev_childhood, product = 3),
+    sum_sev_precon_win = winsorize(x = sum_sev_precon, product = 3),
+    num_stress_total_win = winsorize(x = num_stress_total, product = 3),
+    sum_sev_win = winsorize(x = sum_sev, product = 3),
+    
+  )
 ```
 
+##Examine merged data distributions
+```{r}
+lscr_T1lg_6mocs %>% 
+  ggplot(aes(num_stress_total)) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(breaks = seq.int(0, 30, 5)) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(size = 20, hjust = .5),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 18), 
+    legend.text = element_text(size = 16)
+  ) +
+  labs(
+    x = "Lifetime stress count"
+  )
 
+lscr_T1lg_6mocs %>% 
+  ggplot(aes(num_stress_preg)) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(breaks = seq.int(0, 30, 1)) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(size = 20, hjust = .5),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 18), 
+    legend.text = element_text(size = 16)
+  ) +
+  labs(
+    x = "Pregnancy stress count"
+  )
 
+lscr_T1lg_6mocs %>% 
+  count(num_stress_preg)
+
+lscr_T1lg_6mocs %>% 
+  ggplot(aes(sum_sev)) +
+  geom_histogram(binwidth = 3) +
+  scale_x_continuous(breaks = seq.int(0, 100, 5)) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(size = 20, hjust = .5),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 18), 
+    legend.text = element_text(size = 16)
+  ) +
+  labs(
+    x = "Lifetime stress severity"
+  )
+
+lscr_T1lg_6mocs %>% 
+  ggplot(aes(max_sev)) +
+  geom_histogram(binwidth = .5) +
+  scale_x_continuous(breaks = seq.int(0, 5, 1)) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(size = 20, hjust = .5),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 18), 
+    legend.text = element_text(size = 16)
+  ) +
+  labs(
+    x = "Maximum stress severity"
+  )
+
+lscr_T1lg_6mocs %>% 
+  ggplot(aes(sum_sev_preg)) +
+  geom_histogram(binwidth = 3) +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq.int(0, 25, 2)) +
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(size = 20, hjust = .5),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 18), 
+    legend.text = element_text(size = 16)
+  ) +
+  labs(
+    x = "Pregnancy stress severity"
+  ) 
+
+lscr_T1lg_6mocs %>% 
+  count(maltreated) %>% 
+  mutate(
+    per = n / sum(n)
+  )
+
+lscr_T1lg_6mocs %>% 
+  ggplot(aes(sum_sev_childhood)) +
+  geom_histogram(bins = 15) +
+  labs(x = "Childhood stress severity")
+
+lscr_T1lg_6mocs %>% 
+  ggplot(aes(max_sev_childhood)) +
+  geom_histogram(bins = 15) +
+  labs(x = "Max childhood stress severity")
+
+lscr_T1lg_6mocs %>% 
+  ggplot(aes(sum_sev_precon)) +
+  geom_histogram(bins = 15) +
+  labs(x = "Preconception stress severity")
+
+lscr_T1lg_6mocs %>% 
+  ggplot(aes(sum_sev_postnatal)) +
+  geom_histogram(bins = 15) +
+  labs(x = "Postnatal stress severity")
+
+```
