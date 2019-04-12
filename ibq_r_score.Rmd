@@ -1,0 +1,171 @@
+---
+title: "Score Infant Behavior Questionnaire - Revised"
+output: html_document
+---
+
+```{r}
+#Libraries
+library(tidyverse)
+
+#Parameters
+ibq_cs_file <- "~/Desktop/BABIES/asl_infant_affect/data/ibq_cs_20180912.csv" #cross-sectional data
+
+ibq_lg_file <- "~/Desktop/BABIES//asl_infant_affect/data/ibq_long_20180912.csv" #longitudinal data
+```
+
+
+###Join data from cross-sectional and longitudinal projects
+```{r}
+ibq <-
+  read_csv(ibq_cs_file) %>% 
+  rename(ID = record_id) %>% 
+  mutate(ID = as.integer(ID)) %>% 
+  bind_rows(
+    read_csv(ibq_lg_file) %>% 
+      rename(ID = record_id) %>% 
+      mutate(ID = as.integer(ID))
+  ) %>% 
+  select(-redcap_event_name:-ibq_timestamp)
+```
+
+###Score the IBQ-R
+```{r}
+ibq <- 
+  ibq %>% 
+  mutate_at(
+    vars(
+      ibq_3,
+      ibq_33,
+      ibq_37,
+      ibq_50,
+      ibq_60,
+      ibq_61,
+      ibq_72,
+      ibq_73,
+      ibq_82,
+      ibq_84,
+      ibq_86,
+      ibq_91
+    ),
+    funs(8 - .) #reverse code these items
+  ) %>% 
+  group_by(ID) %>% 
+  mutate(
+    act = mean( #activity level 
+      c(ibq_33, ibq_34, ibq_35, ibq_39, ibq_54, ibq_55, ibq_70), 
+      na.rm = TRUE
+    ),
+    dist = mean( #distress to limitations
+      c(ibq_2, ibq_3, ibq_4, ibq_21, ibq_52, ibq_53, ibq_62), 
+      na.rm = TRUE
+    ),
+    fear = mean( #fear
+      c(ibq_22, ibq_76, ibq_77, ibq_78, ibq_87, ibq_89), 
+      na.rm = TRUE
+    ),
+    dura = mean( #duration of orienting
+      c(ibq_5, ibq_6, ibq_7, ibq_8, ibq_10, ibq_25), 
+      na.rm = TRUE
+    ),
+    smil = mean( #smiling and laughter
+      c(ibq_9, ibq_11, ibq_12, ibq_40, ibq_42, ibq_43, ibq_65), 
+      na.rm = TRUE
+    ),
+    hip = mean( #high pleasure
+      c(ibq_16, ibq_44, ibq_45, ibq_46, ibq_47, ibq_48, ibq_49), 
+      na.rm = TRUE
+    ),
+    lip = mean( #low pleasure
+      c(ibq_13, ibq_14, ibq_15, ibq_17, ibq_18, ibq_19, ibq_67), 
+      na.rm = TRUE
+    ),
+    soot = mean( #soothability
+      c(ibq_81, ibq_82, ibq_83, ibq_84, ibq_85, ibq_86, ibq_91), 
+      na.rm = TRUE
+    ),
+    fall = 8 - mean( #falling reactivity/rate of recovery from distress
+      c(ibq_36, ibq_37, ibq_38, ibq_63, ibq_71, ibq_72), 
+      na.rm = TRUE
+    ),
+    cudd = mean( #cuddliness
+      c(ibq_61, ibq_50, ibq_51, ibq_59, ibq_60, ibq_73), 
+      na.rm = TRUE
+    ),
+    perc = mean( #perceptual sensitivity
+      c(ibq_20, ibq_27, ibq_28, ibq_29, ibq_30, ibq_31), 
+      na.rm = TRUE
+    ),
+    sad = mean( #sadness
+      c(ibq_64, ibq_74, ibq_75, ibq_32, ibq_79, ibq_80), 
+      na.rm = TRUE
+    ),
+    app = mean( #approach
+      c(ibq_23, ibq_24, ibq_68, ibq_69, ibq_88, ibq_90), 
+      na.rm = TRUE
+    ),
+    voc = mean( #vocal reactivity
+      c(ibq_1, ibq_26, ibq_41, ibq_56, ibq_57, ibq_58, ibq_66), 
+      na.rm = TRUE
+    ),
+    SUR = mean( #composite scale: surgency 
+      c(app, voc, hip, smil, act, perc), 
+      na.rm = TRUE
+    ),
+    NEG = mean( #composite scale: negative affectivity 
+      c(sad, dist, fear, fall),
+      na.rm = TRUE 
+    ),
+    REG = mean( #composite scale: regulation
+      c(lip, cudd, dura, soot),
+      na.rm = TRUE 
+    )
+  )
+```
+
+```{r}
+write_csv(ibq, "~/Desktop/BABIES/asl_infant_affect/data/ibq_scored_20180912.csv")
+```
+
+
+```{r}
+ibq %>% 
+  filter(!is.na(NEG)) %>% 
+  n_distinct()
+```
+
+
+
+###Visualize
+
+```{r}
+ibq %>% 
+  ggplot(aes(SUR)) +
+  geom_histogram(bins = 30) 
+
+ibq %>% 
+  ggplot(aes(NEG)) +
+  geom_histogram(bins = 30) 
+
+ibq %>% 
+  ggplot(aes(REG)) +
+  geom_histogram(bins = 30) 
+```
+
+```{r}
+ibq %>% 
+  ggplot(aes(SUR, NEG)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+ibq %>% 
+  ggplot(aes(SUR, REG)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+ibq %>% 
+  ggplot(aes(NEG, REG)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+
