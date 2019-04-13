@@ -18,9 +18,9 @@ library(GPArotation)
 
 #Parameters
 #q_18month_file <- "~/Desktop/BABIES/r01_winter_2019/data/questionnaires_18mo_20181204.csv"
-q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/questionnaires_18mo_cs_datecleaned_20190202.csv"
-q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data/questionnaires_18mo_long_datecleaned_20190202.csv"
-demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190131.csv"
+q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_cs_datecleaned_20190413.csv"
+q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_long_datecleaned_20190413.csv"
+demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190413.csv"
 ```
 
 **Read in data**
@@ -187,7 +187,7 @@ q_18month_scored <-
     ),
     funs(
       . %>%
-        recode(
+        dplyr::recode(
           "0" = 2, 
           "1" = 1, 
           "2" = 0
@@ -672,12 +672,12 @@ q18month_symp <-
 ```{r}
 #but higher score means knows less?
 #yes = 1, sometimes = 2, not yet = 3
-q_18month_scored$asq_c1r = recode(q_18month_scored$asq_c1, "1"=10, "2"=5, "3"=0)
-q_18month_scored$asq_c2r = recode(q_18month_scored$asq_c2, "1"=10, "2"=5, "3"=0)
-q_18month_scored$asq_c3r = recode(q_18month_scored$asq_c3, "1"=10, "2"=5, "3"=0)
-q_18month_scored$asq_c4r = recode(q_18month_scored$asq_c4, "1"=10, "2"=5, "3"=0)
-q_18month_scored$asq_c5r = recode(q_18month_scored$asq_c5, "1"=10, "2"=5, "3"=0)
-q_18month_scored$asq_c6r = recode(q_18month_scored$asq_c6, "1"=10, "2"=5, "3"=0)
+q_18month_scored$asq_c1r = dplyr::recode(q_18month_scored$asq_c1, "1"=10, "2"=5, "3"=0)
+q_18month_scored$asq_c2r = dplyr::recode(q_18month_scored$asq_c2, "1"=10, "2"=5, "3"=0)
+q_18month_scored$asq_c3r = dplyr::recode(q_18month_scored$asq_c3, "1"=10, "2"=5, "3"=0)
+q_18month_scored$asq_c4r = dplyr::recode(q_18month_scored$asq_c4, "1"=10, "2"=5, "3"=0)
+q_18month_scored$asq_c5r = dplyr::recode(q_18month_scored$asq_c5, "1"=10, "2"=5, "3"=0)
+q_18month_scored$asq_c6r = dplyr::recode(q_18month_scored$asq_c6, "1"=10, "2"=5, "3"=0)
 
 q_18month_scored$asq_comm <- rowMeans(subset(q_18month_scored, select = c(asq_c1r, asq_c2r, asq_c3r, asq_c4r, asq_c5r, asq_c6r)), na.rm = T)*6
 
@@ -721,7 +721,7 @@ for(x in 1:100){
 # names(q_18month_scored)
 # cbind(q_18month_scored$mbcdi_1___1,q_18month_scored$mbcdi_1___2,q_18month_scored$mbcdi_1___1_ev)
 # 
-# rv_only <- names(q_18month_scored)[grep("mbcdi_.+___1_ev", names(q_18month_scored))]
+rv_only <- names(q_18month_scored)[grep("mbcdi_.+___1_ev", names(q_18month_scored))]
 
 
 ##attempting to figure out dplyr method - currently unsucessful 
@@ -783,7 +783,7 @@ q_18month_scored$mbcdi_express_total <-
 q_18month_scored$mbcdi_receptonly_total <-
   rowMeans(subset(q_18month_scored, select = c(rv_only)), na.rm = T)*100
 
-q_18month_scored$mbcdi_101 = recode(q_18month_scored$mbcdi_101, "1"=0, "2"=1, "3"=2)
+q_18month_scored$mbcdi_101 = dplyr::recode(q_18month_scored$mbcdi_101, "1"=0, "2"=1, "3"=2)
 
 q_18month_scored <-
   q_18month_scored %>% 
@@ -824,7 +824,7 @@ q18month_symp <-
   ) %>% 
   distinct()
 
-write_csv(q18month_symp, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190202.csv")
+write_csv(q18month_symp, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190413.csv")
 ```
 ##Select scores for all measures
 ```{r}
@@ -863,9 +863,9 @@ q18month_scores <-
     by = "ID"
     )
 
-write_csv(q18month_scores, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scored_20190307.csv") #this one just has the calculated scores
+write_csv(q18month_scores, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scored_20190413.csv") #this one just has the calculated scores
 
-write_csv(q_18month_scored, "~/Desktop/lena_18mo_symptoms/Data/q_18month_20190306.csv") #this one has all the original variables as well as the scores
+write_csv(q_18month_scored, "~/Desktop/lena_18mo_symptoms/Data/q_18month_20190413.csv") #this one has all the original variables as well as the scores
 
 ```
 #note: MBCDI norm scoring was done manually after this step, using the documents "mbcdi_vocab_production_male_norms.csv" and "mbcdi_vocab_production_female_norms.csv"

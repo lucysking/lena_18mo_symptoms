@@ -23,14 +23,15 @@ library("lme4")
 library(ggpubr)
 
 #get files
-crisys_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190202.csv"
-q_18mo_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190202.csv"
+crisys_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190413.csv"
+q_18mo_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190413.csv"
 q_18mo_ages_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_ages.csv"
-demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190131.csv"
-lena_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190202.csv"
-lena_follow_and_data_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190202.csv"
+demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190413.csv"
+lena_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190413.csv"
+lena_follow_and_data_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190413.csv"
 baby_raceth_file <- "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv"
-  
+
+lscr_file <- "~/Desktop/lena_18mo_symptoms/Data/lscr_merged_scored_20190412.csv"
 ```
 #Read in and join data
 ```{r}
@@ -51,6 +52,16 @@ lena_18mo_sym_df <-
   ) %>% 
   left_join(
     read_csv(crisys_file) 
+  ) %>% 
+  left_join(
+    read_csv(lscr_file) %>% 
+      select(
+        ID,
+        num_stress_total,
+        num_stress_preg,
+        sum_sev,
+        max_sev
+      )
   ) %>% 
   left_join(
     read_csv(demographics_file) %>% 
@@ -190,6 +201,18 @@ qplot(lena_18mo_sym_df$cvc_prop,
       geom = "histogram",
       binwidth = .05)
 
+qplot(lena_18mo_sym_df$num_stress_total, 
+      geom = "histogram",
+      binwidth = .05)
+
+qplot(lena_18mo_sym_df$num_stress_preg, 
+      geom = "histogram",
+      binwidth = .05)
+
+qplot(lena_18mo_sym_df$max_sev, 
+      geom = "histogram",
+      binwidth = .05)
+
 count(lena_18mo_sym_df, day_type)
 count(lena_18mo_sym_df_complete, day_type)
 
@@ -256,7 +279,11 @@ correlations_continuous <-
     cvc_daily_rate,
     awc_prop,
     ctc_prop,
-    cvc_prop
+    cvc_prop,
+    num_stress_total,
+    num_stress_preg,
+    max_sev,
+    sum_sev
   )
 
 corr_table <- correlate(correlations_continuous)
@@ -320,110 +347,11 @@ lena_18mo_sym_df <-
 ```{r}
 ##(categorical variables = crisys_median_split, education, male, day_type)
 
-##Is education related to daily rates, props, symptoms, competence?
-
-#make education a factor
-lena_18mo_sym_df <-
-  lena_18mo_sym_df %>% 
-  mutate(education_factor = as.factor(education))
-
-contrasts(lena_18mo_sym_df$education_factor) = cbind(c(0,1,0), c(0,0,1)) #lowest ed group is baseline
-
-#1. Daily Rates:
-education_level_awc_daily <- lm(
-  awc_daily_rate ~ 
-    education_factor,
-  data = lena_18mo_sym_df
-)
-summary(education_level_awc_daily)
-#what do the "factor 1" and "factor 2" variables mean here?
-Anova(education_level_awc_daily, type = 3) #used Anova from car rather than anova because anova doesn't have "type" argument
-
-#RESULT: ns, p = 0.07
-
-education_level_ctc_daily <- lm(
-  ctc_daily_rate ~ 
-    education_factor,
-  data = lena_18mo_sym_df
-)
-summary(education_level_ctc_daily)
-Anova(education_level_ctc_daily, type = 3)
-#RESULT: sig, sum square = 1058.2, df = 2, F = 3.9194, p = .026
-#INTERP: higher edu -- higher daily rate of ctc?
-
-education_level_cvc_daily <- lm(
-  cvc_daily_rate ~ 
-    education_factor,
-  data = lena_18mo_sym_df
-)
-summary(education_level_cvc_daily)
-Anova(education_level_cvc_daily, type = 3)
-#RESULT: sig
-#INTERP: higher edu = higher daily rate of cvc?
-
-#2. Props
-
-education_level_awc_prop <- lm(
-  awc_prop ~ 
-    education_factor,
-  data = lena_18mo_sym_df
-)
-summary(education_level_awc_prop)
-Anova(education_level_awc_prop, type = 3)
-#RESULT: intercept sig, but education factor ns
-
-education_level_ctc_prop <- lm(
-  ctc_prop ~ 
-    education_factor,
-  data = lena_18mo_sym_df
-)
-summary(education_level_ctc_prop)
-Anova(education_level_ctc_prop, type = 3)
-#RESULT: sig
-#INTERP: 
-
-#didn't work
-ggboxplot(lena_18mo_sym_df, x = "education_factor", y = "ctc_prop", 
-          color = "education_factor", palette = c("#00AFBB", "#E7B800", "#FC4E07"),
-          order = c("some college", "BA", "graduate degree"),
-          ylab = "ctc_prop", xlab = "Education Level")
-
-education_level_cvc_prop <- lm(
-  cvc_prop ~ 
-    education_factor,
-  data = lena_18mo_sym_df
-)
-summary(education_level_cvc_prop)
-Anova(education_level_cvc_prop, type = 3)
-#RESULT: intercept sig, rest not
-#INTERP: 
-
-#3. ITSEA
-education_level_itsea_sx <- lm(
-  itsea_symptoms ~ 
-    education_factor,
-  data = lena_18mo_sym_df
-)
-summary(education_level_itsea_sx)
-Anova(education_level_itsea_sx, type = 3)
-#RESULT: intercept sig, rest not
-#INTERP
-
-education_level_itsea_comp <- lm(
-  itsea_competence ~ 
-    education_factor,
-  data = lena_18mo_sym_df
-)
-summary(education_level_itsea_comp)
-Anova(education_level_itsea_comp, type = 3)
-#RESULT: intercept sig, rest not
-#INTERP
-
 ##Is day_type related to daily rates, props, symptoms, competence?
 
 lena_18mo_sym_df %>% 
   count(day_type)
-#41 weekdays, 16 weekends
+#49 weekdays, 21 weekends
 
 t.test(lena_18mo_sym_df$awc_daily_rate ~ lena_18mo_sym_df$day_type)
 #no difference
@@ -443,9 +371,6 @@ t.test(lena_18mo_sym_df$itsea_competence ~ lena_18mo_sym_df$day_type)
 #ns
 
 #differences among stressed vs. non-stressed groups by education, income_needs, daily rates, props, itsea_symptoms, itsea_competence
-
-chisq.test(lena_18mo_sym_df$crisys_median_split, lena_18mo_sym_df$education_factor)
-#"may be incorrect" - small cell size for 1 level of education
 
 t.test(lena_18mo_sym_df$income_needs ~ lena_18mo_sym_df$crisys_median_split)
 #ns, higher in not stressed
@@ -516,7 +441,7 @@ lena_18mo_sym_df %>%
   arrange(desc(per))
 ```
 
-#Run main analyses
+#Run main analyses (interactions)
 ```{r}
 #don't need to specify intercept
 #F-statistic - whether overall model is sig
@@ -536,7 +461,7 @@ summary(lena_18mo_sym_int_awc)
 lena_18mo_sym_int_ctc <- 
   lm(
     itsea_symptoms ~ 
-      crisys_total_6mo_win * ctc_prop,
+      crisys_total_6mo_win * ctc_prop_centered,
     data = lena_18mo_sym_df)
 
 summary(lena_18mo_sym_int_ctc)
@@ -545,9 +470,68 @@ summary(lena_18mo_sym_int_ctc)
 lena_18mo_sym_int_cvc <- 
   lm(
     itsea_symptoms ~ 
-      crisys_total_6mo_win * cvc_prop,
+      crisys_total_6mo_win * cvc_prop_centered,
     data = lena_18mo_sym_df)
 summary(lena_18mo_sym_int_cvc)
+#ns
+
+lena_18mo_sym_int_awc_daily_rate <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      crisys_total_6mo_win * awc_daily_rate,
+    data = lena_18mo_sym_df 
+                 )
+summary(lena_18mo_sym_int_awc_daily_rate)
+#ns
+
+lena_18mo_sym_int_ctc_daily_rate <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      crisys_total_6mo_win * ctc_daily_rate,
+    data = lena_18mo_sym_df 
+                 )
+summary(lena_18mo_sym_int_ctc_daily_rate)
+#ns
+
+lena_18mo_sym_int_cvc_daily_rate <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      crisys_total_6mo_win * cvc_daily_rate,
+    data = lena_18mo_sym_df 
+                 )
+summary(lena_18mo_sym_int_cvc_daily_rate)
+#ns
+
+lena_18mo_sym_int_numstress <- 
+  lm(
+    itsea_symptoms ~ 
+      crisys_total_6mo_win * num_stress_total,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_numstress)
+#ns
+
+lena_18mo_sym_int_numstress_preg <- 
+  lm(
+    itsea_symptoms ~ 
+      crisys_total_6mo_win * num_stress_preg,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_numstress_preg)
+#ns
+
+lena_18mo_sym_int_sumsev <- 
+  lm(
+    itsea_symptoms ~ 
+      crisys_total_6mo_win * sum_sev,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_sumsev)
+#ns
+
+lena_18mo_sym_int_maxsev <- 
+  lm(
+    itsea_symptoms ~ 
+      crisys_total_6mo_win * max_sev,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_maxsev)
 #ns
 
 #explanation of summary output: 
@@ -598,6 +582,62 @@ lena_18mo_sym_cvc <-
 summary(lena_18mo_sym_cvc)
 #cvc_prop estimate = -0.5256, t = -1.71, p = .093
 
+lena_18mo_sym_awc_daily <- 
+  lm(
+    itsea_symptoms ~ 
+      awc_daily_rate,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_awc_daily)
+#awc_daily_rate estimate = -1.213e^-4, t = -2.39, p = .02
+
+lena_18mo_sym_ctc_daily <- 
+  lm(
+    itsea_symptoms ~ 
+      ctc_daily_rate,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_ctc_daily)
+#ctc_daily_rate estimate = -.005569, t = -2.69, p = .009
+
+lena_18mo_sym_cvc_daily <- 
+  lm(
+    itsea_symptoms ~ 
+      cvc_daily_rate,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_cvc_daily)
+
+lena_18mo_sym_numstress <- 
+  lm(
+    itsea_symptoms ~ 
+      num_stress_total,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_numstress)
+#no main effect total num stressors
+
+lena_18mo_sym_sumsev <- 
+  lm(
+    itsea_symptoms ~ 
+      sum_sev,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_sumsev)
+#no main effect
+
+lena_18mo_sym_numstress_preg <- 
+  lm(
+    itsea_symptoms ~ 
+     num_stress_preg,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_numstress_preg)
+#no main effect
+
+lena_18mo_sym_maxsev <- 
+  lm(
+    itsea_symptoms ~ 
+     max_sev,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_maxsev)
+#no main effect
+
+#visualize interesting stuff
 lena_18mo_sym_df %>%
   ggplot(aes(ctc_prop, itsea_symptoms)) +
   geom_point() +
@@ -714,7 +754,6 @@ summary(lena_18mo_sym_int_awc_rate)
 ```
 
 
-#run model with just weekdays and see if results hold
 ```{r}
 lena_18mo_sym_df_weekdays <-
   lena_18mo_sym_df %>% 
@@ -725,15 +764,35 @@ lena_18mo_sym_df_weekdays <-
 lena_18mo_sym_int_awc_weekdays <- 
   lm(
     itsea_symptoms ~ 
-      crisys_total_6mo_win * awc_prop,
-    data = lena_18mo_sym_df_weekdays, 
+      crisys_total_6mo_win * awc_prop_centered,
+    data = lena_18mo_sym_df_weekdays,
     contrasts = (contrasts(lena_18mo_sym_df$crisys_median_factor) = c(-1,1)
                  )
   )
 summary(lena_18mo_sym_int_awc_weekdays)
+
+lena_18mo_sym_int_ctc_weekdays <- 
+  lm(
+    itsea_symptoms ~ 
+      crisys_total_6mo_win * ctc_prop_centered,
+    data = lena_18mo_sym_df_weekdays,
+    contrasts = (contrasts(lena_18mo_sym_df$crisys_median_factor) = c(-1,1)
+                 )
+  )
+summary(lena_18mo_sym_int_ctc_weekdays)
+
+lena_18mo_sym_ctc_weekdays <- 
+  lm(
+    itsea_symptoms ~ 
+      ctc_prop_centered,
+    data = lena_18mo_sym_df_weekdays,
+    contrasts = (contrasts(lena_18mo_sym_df$crisys_median_factor) = c(-1,1)
+                 )
+  )
+summary(lena_18mo_sym_ctc_weekdays)
 ```
 
-#visualize interactions
+#visualize interactions & main effects
 ```{r}
 
 count(lena_18mo_sym_df, crisys_median_split)
@@ -742,7 +801,7 @@ lena_18mo_sym_df %>%
   filter(
     !is.na(crisys_median_split)
   ) %>% 
-  ggplot(aes(awc_prop, itsea_symptoms, color = crisys_median_split)) +
+  ggplot(aes(awc_prop_centered, itsea_symptoms, color = crisys_median_split)) +
   geom_point() +
   geom_smooth(method ="lm")
 
@@ -750,9 +809,20 @@ lena_18mo_sym_df %>%
   filter(
     !is.na(crisys_median_split)
   ) %>% 
-  ggplot(aes(ctc_prop, itsea_symptoms, color = crisys_median_split)) +
+  ggplot(aes(ctc_prop_centered, itsea_symptoms, color = crisys_median_split)) +
   geom_point() +
   geom_smooth(method ="lm")
+
+lena_18mo_sym_df %>%
+  ggplot(aes(awc_prop_centered, itsea_symptoms)) +
+  geom_point() +
+  geom_smooth(method ="lm")
+
+lena_18mo_sym_df %>%
+  ggplot(aes(ctc_prop_centered, itsea_symptoms)) +
+  geom_point() +
+  geom_smooth(method ="lm")
+
 ```
 #examine LENA follow-up data
 ```{r}

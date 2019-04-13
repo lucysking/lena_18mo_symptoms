@@ -17,21 +17,21 @@ demo_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_cs_20190131.csv"
 
 #demo_long_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_demo_20181128.csv"
 demo_mom_long_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_preg_20190131.csv"
-demo_baby_long_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_nb_20190131.csv"
+demo_baby_long_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_nb_20190413.csv"
 
 #dob_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/cs_dob_20181128.csv"
 dob_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/dob_cs_20190131.csv"
 #dob_long_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_dob_20181128.csv"
-dob_long_file <- "~/Desktop/lena_18mo_symptoms/Data/dob_long_20190131.csv"
+dob_long_file <- "~/Desktop/lena_18mo_symptoms/Data/dob_long_20190413.csv"
 
 #visit_date_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/cs_visit_date_20181128.csv"
 visit_date_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_cs_20190131.csv"
 #visit_date_long_6mo_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_6mo_visit_date_20181128.csv"
-visit_date_long_6mo_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_long_6mo_20190131.csv"
+visit_date_long_6mo_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_long_6mo_20190413.csv"
 #visit_dates_long_t1t2_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_t1t2_dates_20181128.csv"
 
 ##To get the following file, first need to run long_t1t2dates_combine.Rmd
-visit_dates_long_t1t2_file <- "~/Desktop/lena_18mo_symptoms/Data/long_t1t2_dates_20190131.csv"
+visit_dates_long_t1t2_file <- "~/Desktop/lena_18mo_symptoms/Data/long_t1t2_dates_20190413.csv"
 
 ```
 #get baby race and ethnicity (workaround for full script w dates not working)
@@ -99,6 +99,7 @@ dates <-
       mutate(ID = as.integer(ID)) %>% 
       bind_rows(
         read_csv(visit_date_long_6mo_file) %>%
+          mutate(crf_date = as.Date(crf_date, "%m/%d/%y")) %>%
           select(
             record_id,
             crf_date
@@ -117,12 +118,6 @@ dates <-
     visit_date_6mo = crf_date 
   ) %>% 
   mutate(
-    mom_dob = parse_date(mom_dob, format = "%Y-%m-%d"),
-    baby_dob = parse_date(baby_dob, format = "%Y-%m-%d"),
-    visit_date_6mo = parse_date(visit_date_6mo, format = "%Y-%m-%d"),
-    date_preg = parse_date(date_preg, format = "%Y-%m-%d"),
-    baby_due_date = parse_date(baby_due_date, format = "%Y-%m-%d"),
-    date_newborn = parse_date(date_newborn, format = "%Y-%m-%d"),
     baby_conception_date = baby_due_date - weeks(40),
     mom_age_6mo_visit = (mom_dob %--% visit_date_6mo) / years(1),
     baby_age_6mo_vsit = (baby_dob %--% visit_date_6mo) / months(1),
@@ -184,9 +179,9 @@ demo <-
         select(
           ID = record_id,
           baby_sex,
-          baby_ethnicity,
-          baby_race,
-          baby_race_describe
+          child_race = baby_race,
+          childrace_describe = baby_race_describe,
+          child_ethnicity = baby_ethnicity
         ) %>% 
         mutate(
           ID = as.integer(ID)
@@ -205,7 +200,7 @@ demo <-
   mutate(
     household_income = as.character(annual_income),
     household_income_numeric = as.numeric(
-      recode(
+      dplyr::recode(
         annual_income,
         "1" = "2500",
         "2" = "10000",
@@ -219,7 +214,7 @@ demo <-
     #santa clara country low-income limit : 80% of median income (ratios <= 1 are therefore "low income")
     #https://www.huduser.gov/portal/datasets/il/il2017/2017summary.odn
     SC_lowincome_limit = as.numeric(
-      recode(
+      dplyr::recode(
         ppl_in_home,
         "1" = "59350",
         "2" = "67800",
@@ -258,7 +253,7 @@ demo <-
   demo %>% 
   filter(!is.na(mom_ethnicity))
 
-write_csv(demo, "~/Desktop/lena_18mo_symptoms/Data/demographics_20190131.csv")
+write_csv(demo, "~/Desktop/lena_18mo_symptoms/Data/demographics_20190413.csv")
 
 ```
 
