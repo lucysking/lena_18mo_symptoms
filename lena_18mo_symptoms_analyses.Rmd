@@ -89,6 +89,61 @@ lena_18mo_sym_df <-
 glimpse(lena_18mo_sym_df)
   
 ```
+#demographics in only subset with complete data
+```{r}
+lena_18mo_sym_df_complete <-
+  lena_18mo_sym_df %>% 
+  filter(
+    complete.cases(lena_18mo_sym_df)
+  )
+
+#mean and sd of continuous variables
+demo_summaries_complete <-
+lena_18mo_sym_df_complete %>% 
+  summarize_at(
+    vars(
+    baby_age_18month,
+    baby_age_lena,
+    duration,
+    mom_age_6mo_visit
+    ), 
+    list(~mean, ~sd, ~min, ~max),
+    na.rm = TRUE)
+
+#counts and percentages for categorical variables - education, ethnicity, race, income
+lena_18mo_sym_df_complete %>% 
+  count(annual_income) %>% 
+  mutate(per = n / sum(n)) %>% 
+  arrange(desc(annual_income))
+
+lena_18mo_sym_df_complete %>% 
+  count(income_needs < 1) %>% 
+  mutate(per = n / sum(n))
+
+lena_18mo_sym_df_complete %>% 
+  count(mom_ethnicity) %>% 
+  mutate(per = n / sum(n))
+
+lena_18mo_sym_df_complete %>% 
+  count(child_ethnicity) %>% 
+  mutate(per = n / sum(n))
+  
+lena_18mo_sym_df_complete %>% 
+  count(mom_race) %>% 
+  mutate(per = n / sum(n)) %>% 
+  arrange(desc(per))
+
+lena_18mo_sym_df %>% 
+  count(child_race) %>% 
+  mutate(per = n / sum(n)) %>% 
+  arrange(desc(per))
+
+lena_18mo_sym_df_complete %>% 
+  count(education) %>% 
+  mutate(per = n / sum(n)) %>% 
+  arrange(desc(per))
+```
+
 #look at distributions of data
 ```{r}
 qplot(lena_18mo_sym_df$itsea_competence, 
@@ -224,6 +279,8 @@ corr_mat
 #Insignificant correlations are left blank
 corrplot(corr_mat$r, type="upper", order="hclust", 
          p.mat = corr_mat$P, sig.level = 0.05, insig = "blank")
+
+
 ```
 #center continuous variables
 ```{r}
@@ -458,60 +515,6 @@ lena_18mo_sym_df %>%
   mutate(per = n / sum(n)) %>% 
   arrange(desc(per))
 ```
-#demographics in only subset with complete data
-```{r}
-lena_18mo_sym_df_complete <-
-  lena_18mo_sym_df %>% 
-  filter(
-    complete.cases(lena_18mo_sym_df)
-  )
-
-#mean and sd of continuous variables
-demo_summaries_complete <-
-lena_18mo_sym_df_complete %>% 
-  summarize_at(
-    vars(
-    baby_age_18month,
-    baby_age_lena,
-    duration,
-    mom_age_6mo_visit
-    ), 
-    list(~mean, ~sd, ~min, ~max),
-    na.rm = TRUE)
-
-#counts and percentages for categorical variables - education, ethnicity, race, income
-lena_18mo_sym_df_complete %>% 
-  count(annual_income) %>% 
-  mutate(per = n / sum(n)) %>% 
-  arrange(desc(annual_income))
-
-lena_18mo_sym_df_complete %>% 
-  count(income_needs < 1) %>% 
-  mutate(per = n / sum(n))
-
-lena_18mo_sym_df_complete %>% 
-  count(mom_ethnicity) %>% 
-  mutate(per = n / sum(n))
-
-lena_18mo_sym_df_complete %>% 
-  count(child_ethnicity) %>% 
-  mutate(per = n / sum(n))
-  
-lena_18mo_sym_df_complete %>% 
-  count(mom_race) %>% 
-  mutate(per = n / sum(n)) %>% 
-  arrange(desc(per))
-
-lena_18mo_sym_df %>% 
-  count(child_race) %>% 
-  mutate(per = n / sum(n)) %>% 
-  arrange(desc(per))
-
-lena_18mo_sym_df_complete %>% 
-  count(education) %>% 
-  mutate(per = n / sum(n)) %>% 
-  arrange(desc(per))
-```
 
 #Run main analyses
 ```{r}
@@ -556,8 +559,61 @@ summary(lena_18mo_sym_int_cvc)
 #R squared: The R-squared (R2) statistic provides a measure of how well the model is fitting the actual data. It takes the form of a proportion of variance. R2 is a measure of the linear relationship between our predictor variable and our response / target variable. It always lies between 0 and 1
 #F-statistic is a good indicator of whether there is a relationship between our predictor and the response variables. The further the F-statistic is from 1 the better it is. However, how much larger the F-statistic needs to be depends on both the number of data points and the number of predictors.
 ```
+#main effects
+```{r}
+lena_18mo_sym_awc_cent <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      awc_prop_centered,
+    data = lena_18mo_sym_df 
+                 )
+
+summary(lena_18mo_sym_awc_cent)
+#
+
+lena_18mo_sym_awc <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      awc_prop,
+    data = lena_18mo_sym_df 
+                 )
+
+summary(lena_18mo_sym_awc)
+#awc_prop estimate = -.3767, t = -1.343, p = .185
+
+lena_18mo_sym_ctc <- 
+  lm(
+    itsea_symptoms ~ 
+      ctc_prop,
+    data = lena_18mo_sym_df)
+
+summary(lena_18mo_sym_ctc)
+#ctc_prop estimate = -0.5743, t = -2.39, p = .02
+
+lena_18mo_sym_cvc <- 
+  lm(
+    itsea_symptoms ~ 
+      cvc_prop,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_cvc)
+#cvc_prop estimate = -0.5256, t = -1.71, p = .093
+
+lena_18mo_sym_df %>%
+  ggplot(aes(ctc_prop, itsea_symptoms)) +
+  geom_point() +
+  geom_smooth(method ="lm")
+```
+
+
 #run model with covs
 ```{r}
+lena_18mo_sym_int_sex_cov <- 
+  lm(itsea_symptoms ~ 
+       crisys_total_6mo_win * awc_prop_centered 
+     + male, 
+     data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_sex_cov)
+
 lena_18mo_sym_int_awc_covs <- 
   lm(itsea_symptoms ~ 
        crisys_total_6mo_win * awc_prop 
@@ -689,6 +745,14 @@ lena_18mo_sym_df %>%
   ggplot(aes(awc_prop, itsea_symptoms, color = crisys_median_split)) +
   geom_point() +
   geom_smooth(method ="lm")
+
+lena_18mo_sym_df %>%
+  filter(
+    !is.na(crisys_median_split)
+  ) %>% 
+  ggplot(aes(ctc_prop, itsea_symptoms, color = crisys_median_split)) +
+  geom_point() +
+  geom_smooth(method ="lm")
 ```
 #examine LENA follow-up data
 ```{r}
@@ -704,9 +768,6 @@ lena_momtime_awc <-
     )
 summary(lena_momtime_awc)
 #association not significant (p = .69)
-
-#see if percent_mother associated with weekday vs weekend
-t.test(lena_follow_complete_data$percent_mother ~ lena_follow_complete_data$day_type)
 
 #cor.test (use spearman's correlation if data is weirdly distributed to check correlation)
 
@@ -745,6 +806,9 @@ lena_follow_complete_data %>%
 lena_follow_complete_data %>% 
   count(percent_mother) %>% 
   mutate(total = sum(!is.na(n)))
+
+#see if percent_mother associated with weekday vs weekend
+t.test(lena_follow_complete_data$percent_mother ~ lena_follow_complete_data$day_type.x)
   
 ```
 
