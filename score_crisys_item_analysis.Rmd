@@ -1,0 +1,288 @@
+---
+title: "Score CRISYS"
+output: html_notebook
+---
+
+```{r}
+#Libraries
+library(tidyverse)
+library(psych)
+library(corrr)
+
+#Paramaters
+crisys_preg_file <- "~/Desktop/BABIES/lena_symptoms/data/crisys_preg_20190418.csv"
+
+crisys_nb_cs_file <- "~/Desktop/BABIES/lena_symptoms/data/crisys_nb_20190418.csv"
+#crisys_nb_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_nb_20190413.csv"
+
+crisys_6mo_lg_file <- "~/Desktop/BABIES/lena_symptoms/data/crisys_6mo_long_20190418.csv" 
+#crisys_6mo_lg_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_long_20190413.csv"
+
+crisys_6mo_cs_file <- "~/Desktop/BABIES/lena_symptoms/data/crysis_6mo_cs_20190418.csv" 
+#crisys_6mo_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_cs_20190202.csv"
+
+
+#Functions
+source("~/Desktop/BABIES/lena_symptoms/lena_18mo_symptoms/winsorize.R")
+```
+
+```{r}
+crisys <-
+  read_csv(crisys_preg_file) %>% 
+  rename(ID = record_id) %>% 
+  mutate(ID = as.integer(ID)) %>% 
+  select(-redcap_survey_identifier:-crisys_timestamp) %>% 
+  bind_rows(
+    read_csv(crisys_nb_cs_file) %>% 
+      rename(ID = record_id) %>% 
+      mutate(ID = as.integer(ID)) %>% 
+      select(-redcap_survey_identifier:-crisys_timestamp)
+  ) %>% 
+  bind_rows(
+    read_csv(crisys_6mo_cs_file) %>% 
+      rename(ID = record_id) %>% 
+      mutate(ID = as.integer(ID)) %>% 
+      select(-redcap_survey_identifier:-crisys_timestamp) 
+  ) %>% 
+  bind_rows(
+    read_csv(crisys_6mo_lg_file) %>% 
+      rename(ID = record_id) %>% 
+      mutate(ID = as.integer(ID)) %>% 
+      select(-redcap_survey_identifier:-crisys_timestamp)
+  ) %>% 
+  filter(!is.na(crisys_1)) %>% 
+  mutate(
+    n_crisys = pmap_dbl(
+        select(., c(crisys_1:crisys_72)),
+        function(...) sum(!is.na(c(...)), na.rm = TRUE)
+      ), 
+    crisys_total = as.double(
+      pmap_dbl(
+        select(., c(crisys_1:crisys_72)),
+        function(...) mean(c(...), na.rm = TRUE)
+      ) * 72
+    ) 
+  ) %>% 
+  rename(
+    timepoint = redcap_event_name
+  ) %>% 
+  mutate(
+    timepoint = if_else(
+      timepoint == "questionnaires_6mo_arm_1",
+      "sixmonth_arm_1", timepoint
+    ),
+    timepoint = str_remove(timepoint, "_arm_1")
+  )
+
+crisys <- 
+  crisys %>% 
+  group_by(timepoint) %>% 
+  mutate(
+    crisys_win = winsorize(crisys_total, product = 3)
+  ) %>% 
+  ungroup()
+```
+
+```{r}
+crisys_wf <-
+  crisys %>% 
+  select(ID, timepoint, crisys_total, crisys_win) %>% 
+  gather(variable, value, crisys_total:crisys_win) %>% 
+  unite(temp, timepoint, variable) %>% 
+  spread(temp, value)
+```
+
+
+```{r}
+crisys %>% 
+  ggplot(aes(timepoint, crisys_total)) +
+  geom_line(
+    aes(
+      timepoint, 
+      crisys_total, 
+      group = ID
+    ),
+    color = "blue",
+    alpha = 1/4
+  ) +
+  theme(
+    legend.position = "none"
+  )
+
+crisys %>% 
+  ggplot(aes(timepoint, crisys_total)) +
+  geom_boxplot()
+
+
+crisys %>% 
+  ggplot(aes(crisys_total)) +
+  geom_histogram() +
+  facet_wrap(~timepoint)
+
+crisys %>% 
+  ggplot(aes(crisys_win)) +
+  geom_histogram() +
+  facet_wrap(~timepoint)
+
+
+```
+
+# Item analysis
+
+## Prep data
+```{r}
+crisys %>% 
+  count(timepoint)
+
+#select only crisys variables
+crisys_6mo <-
+  crisys %>% 
+  filter(timepoint == "sixmonth") %>% 
+  mutate(
+    crisys_69 = if_else(is.na(crisys_69), 0, crisys_69),
+    crisys_70 = if_else(is.na(crisys_70), 0, crisys_70),
+    crisys_71 = if_else(is.na(crisys_71), 0, crisys_71),
+    crisys_72 = if_else(is.na(crisys_72), 0, crisys_72)
+  ) %>% 
+  select(crisys_1:crisys_72) 
+
+#drop variables that have only 0s
+crisys_6mo_fa <-
+  crisys_6mo %>% 
+  select_if(
+    ~sum(., na.rm = TRUE) > 0
+  )
+
+#identify variables dropped
+crisys_6mo_fa_vars <-
+  crisys_6mo_fa %>% 
+  names()
+
+crisys_6mo %>% 
+  select(-crisys_6mo_fa_vars) %>% 
+  names()
+
+##count non-missing values
+crisys_6mo_fa %>% 
+  summarize_all(
+    ~sum(., na.rm = TRUE)
+  )
+```
+
+## Correlation table
+```{r}
+crisys_6mo_n <-
+  crisys_6mo %>% 
+  n_distinct()
+
+crisys_6mo_fa %>% 
+  cor.plot() 
+
+crisys_6mo_cor <-
+  crisys_6mo_fa %>% 
+  cor(use = "complete.obs")
+```
+
+
+```{r}
+crisys_6mo_alpha <- 
+  crisys_6mo %>% 
+  alpha(check.keys = FALSE)
+
+alpha <- crisys_6mo_alpha$total$raw_alpha
+
+alpha_drop <- 
+  crisys_6mo_alpha$alpha.drop %>% 
+  rownames_to_column(var = "items") %>% 
+  mutate(
+    bad_item = if_else(
+      raw_alpha > alpha,
+      1, 0
+    )
+  )
+
+#bad items
+bad_items <- 
+  alpha_drop %>% 
+  filter(bad_item == 1) %>% 
+  select(items) %>% 
+  pull()
+
+#good items
+good_items <-
+  alpha_drop %>% 
+  filter(bad_item == 0) %>% 
+  select(items) %>% 
+  pull()
+```
+
+
+```{r}
+crisys_6mo_id <-
+  crisys %>% 
+  filter(timepoint == "sixmonth") %>% 
+  select(
+    ID,
+    crisys_6mo_good_items,
+    crisys_total,
+    crisys_win
+  ) %>% 
+ mutate(
+    n_crisys_good = pmap_dbl(
+        select(., good_items),
+        function(...) sum(!is.na(c(...)), na.rm = TRUE)
+      ), 
+    crisys_total_good = as.double(
+      pmap_dbl(
+        select(., good_items),
+        function(...) mean(c(...), na.rm = TRUE)
+      ) * 49
+    ) 
+  ) 
+
+cor.test(crisys_6mo_id$crisys_total, crisys_6mo_id$crisys_total_good)
+```
+
+```{r}
+stress <-
+  crisys_6mo_id %>% 
+  left_join(lscr_T1lg_6mocs, by = "ID")
+
+stress %>% 
+  select(crisys_total, crisys_win, crisys_total_good, sum_sev_win, num_stress_total) %>% 
+  correlate(method = "pearson")
+
+stress %>% 
+  ggplot(aes(crisys_win, num_stress_total)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+cor.test(stress$crisys_win, stress$sum_sev_win)
+```
+
+
+```{r}
+crisys_6mo <-
+  crisys_wf %>% 
+    select(
+      ID,
+      crisys_total_6mo = sixmonth_crisys_total
+    )
+  
+crisys_6mo %>% 
+  ggplot(aes(crisys_total_6mo)) +
+  geom_histogram(bins = 20)
+
+crisys_6mo <- 
+  winsorize(crisys_6mo, crisys_total_6mo) %>% 
+  rename(crisys_total_6mo_win = value)
+
+crisys_6mo %>% 
+  ggplot(aes(crisys_total_6mo_win)) +
+  geom_histogram(bins = 20)
+
+write_csv(crisys_6mo, "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190413.csv")
+```
+
+```
+

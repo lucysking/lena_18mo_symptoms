@@ -71,8 +71,8 @@ crisys <-
     crisys_total = as.double(
       pmap_dbl(
         select(., c(crisys_1:crisys_72)),
-        function(...) sum(c(...), na.rm = TRUE)
-      )
+        function(...) mean(c(...), na.rm = TRUE)
+      ) * 72
     ) 
   ) %>% 
   select(
