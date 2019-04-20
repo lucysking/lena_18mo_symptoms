@@ -8,9 +8,13 @@ output: html_document
 library(tidyverse)
 
 #Parameters
-ibq_cs_file <- "~/Desktop/BABIES/asl_infant_affect/data/ibq_cs_20180912.csv" #cross-sectional data
+#ibq_cs_file <- "~/Desktop/BABIES/asl_infant_affect/data/ibq_cs_20180912.csv" 
+ibq_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/ibq_cs_20190413.csv"
+#cross-sectional data
 
-ibq_lg_file <- "~/Desktop/BABIES//asl_infant_affect/data/ibq_long_20180912.csv" #longitudinal data
+#ibq_lg_file <- "~/Desktop/BABIES//asl_infant_affect/data/ibq_long_20180912.csv" 
+ibq_lg_file <- "~/Desktop/lena_18mo_symptoms/Data/ibq_long_20190413.csv"
+#longitudinal data
 ```
 
 
@@ -123,7 +127,7 @@ ibq <-
 ```
 
 ```{r}
-write_csv(ibq, "~/Desktop/BABIES/asl_infant_affect/data/ibq_scored_20180912.csv")
+write_csv(ibq, "~/Desktop/lena_18mo_symptoms/Data/ibq_scored_20190413.csv")
 ```
 
 

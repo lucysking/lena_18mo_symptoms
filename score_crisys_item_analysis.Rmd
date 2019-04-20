@@ -260,7 +260,6 @@ stress %>%
 cor.test(stress$crisys_win, stress$sum_sev_win)
 ```
 
-
 ```{r}
 crisys_6mo <-
   crisys_wf %>% 

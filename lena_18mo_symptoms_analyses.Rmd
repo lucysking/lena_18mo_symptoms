@@ -30,7 +30,7 @@ demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190413.cs
 lena_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190413.csv"
 lena_follow_and_data_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190413.csv"
 baby_raceth_file <- "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv"
-
+ibq_file <- "~/Desktop/lena_18mo_symptoms/Data/ibq_scored_20190413.csv"
 lscr_file <- "~/Desktop/lena_18mo_symptoms/Data/lscr_merged_scored_20190412.csv"
 ```
 #Read in and join data
@@ -86,6 +86,14 @@ lena_18mo_sym_df <-
     read_csv(lena_file) %>% 
       rename(
         baby_age_lena = age
+      )
+  ) %>% 
+  left_join(
+    read_csv(ibq_file) %>% 
+      select(
+        ID,
+        SUR,
+        NEG
       )
   )
 
@@ -283,7 +291,9 @@ correlations_continuous <-
     num_stress_total,
     num_stress_preg,
     max_sev,
-    sum_sev
+    sum_sev,
+    SUR,
+    NEG
   )
 
 corr_table <- correlate(correlations_continuous)
@@ -318,6 +328,14 @@ lena_18mo_sym_df <-
     crisys_median_split = if_else(
       crisys_total_6mo_win > median(crisys_total_6mo_win, na.rm = TRUE),
       "stressed", "not stressed"
+      ),
+    num_stress_total_median_split = if_else(
+      num_stress_total > median(num_stress_total, na.rm = TRUE),
+      "high lifetime stress", "low lifetime stress"
+      ),
+    sumsev_total_median_split = if_else(
+      sum_sev > median(sum_sev, na.rm = TRUE),
+      "intense stress", "not intense stress"
       )
   )
 
@@ -502,36 +520,68 @@ lena_18mo_sym_int_cvc_daily_rate <-
 summary(lena_18mo_sym_int_cvc_daily_rate)
 #ns
 
-lena_18mo_sym_int_numstress <- 
+lena_18mo_sym_int_numstress_awc <- 
   lm(
-    itsea_symptoms ~ 
-      crisys_total_6mo_win * num_stress_total,
+    itsea_symptoms_centered ~ 
+      num_stress_total * awc_prop,
     data = lena_18mo_sym_df)
-summary(lena_18mo_sym_int_numstress)
+summary(lena_18mo_sym_int_numstress_awc)
 #ns
 
-lena_18mo_sym_int_numstress_preg <- 
+lena_18mo_sym_int_numstress_preg_awc <- 
   lm(
     itsea_symptoms ~ 
-      crisys_total_6mo_win * num_stress_preg,
+      num_stress_preg * awc_prop,
     data = lena_18mo_sym_df)
-summary(lena_18mo_sym_int_numstress_preg)
+summary(lena_18mo_sym_int_numstress_preg_awc)
 #ns
 
-lena_18mo_sym_int_sumsev <- 
+lena_18mo_sym_int_sumsev_awc <- 
   lm(
     itsea_symptoms ~ 
-      crisys_total_6mo_win * sum_sev,
+      sum_sev * awc_prop,
     data = lena_18mo_sym_df)
-summary(lena_18mo_sym_int_sumsev)
+summary(lena_18mo_sym_int_sumsev_awc)
 #ns
 
-lena_18mo_sym_int_maxsev <- 
+lena_18mo_sym_int_maxsev_awc <- 
   lm(
     itsea_symptoms ~ 
-      crisys_total_6mo_win * max_sev,
+      max_sev * awc_prop,
     data = lena_18mo_sym_df)
-summary(lena_18mo_sym_int_maxsev)
+summary(lena_18mo_sym_int_maxsev_awc)
+#ns
+
+lena_18mo_sym_int_numstress_ctc <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      num_stress_total * ctc_prop,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_numstress_ctc)
+#all variables are significant!
+
+lena_18mo_sym_int_numstress_preg_ctc <- 
+  lm(
+    itsea_symptoms ~ 
+      num_stress_preg * ctc_prop,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_numstress_preg_ctc)
+#ns
+
+lena_18mo_sym_int_sumsev_ctc <- 
+  lm(
+    itsea_symptoms ~ 
+      sum_sev * ctc_prop,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_sumsev_ctc)
+#all variables are significant
+
+lena_18mo_sym_int_maxsev_ctc <- 
+  lm(
+    itsea_symptoms ~ 
+      max_sev * ctc_prop,
+    data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_maxsev_ctc)
 #ns
 
 #explanation of summary output: 
@@ -648,21 +698,75 @@ lena_18mo_sym_df %>%
 #run model with covs
 ```{r}
 lena_18mo_sym_int_sex_cov <- 
-  lm(itsea_symptoms ~ 
+  lm(itsea_symptoms_centered ~ 
        crisys_total_6mo_win * awc_prop_centered 
      + male, 
      data = lena_18mo_sym_df)
 summary(lena_18mo_sym_int_sex_cov)
 
 lena_18mo_sym_int_awc_covs <- 
-  lm(itsea_symptoms ~ 
+  lm(itsea_symptoms_centered ~ 
        crisys_total_6mo_win * awc_prop 
      + baby_age_lena 
-     + male 
-     + baby_age_18month,
+     + SUR
+     + NEG,
      data = lena_18mo_sym_df)
 summary(lena_18mo_sym_int_awc_covs)
-#explains even more variance!
+
+lena_18mo_sym_int_awc_daytype <-
+  lm(itsea_symptoms_centered ~ 
+       crisys_total_6mo_win * awc_prop 
+     + day_type,
+     data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_awc_daytype)
+
+lena_18mo_sym_int_ctc_covs <- 
+  lm(itsea_symptoms_centered ~ 
+       crisys_total_6mo_win * ctc_prop 
+     + baby_age_lena 
+     + SUR
+     + NEG,
+     data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_ctc_covs)
+
+lena_18mo_sym_int_ctc_daytype <-
+  lm(itsea_symptoms_centered ~ 
+       crisys_total_6mo_win * ctc_prop 
+     + day_type,
+     data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_ctc_daytype)
+
+lena_18mo_sym_int_ctc_covs <- 
+  lm(itsea_symptoms_centered ~ 
+       max_sev * ctc_prop 
+     + baby_age_lena 
+     + SUR
+     + NEG,
+     data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_ctc_covs)
+
+lena_18mo_sym_int_ctc_daytype <-
+  lm(itsea_symptoms_centered ~ 
+       max_sev * ctc_prop 
+     + day_type,
+     data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_ctc_daytype)
+
+lena_18mo_sym_int_ctc_covs <- 
+  lm(itsea_symptoms_centered ~ 
+       num_stress_total * ctc_prop 
+     + baby_age_lena 
+     + SUR
+     + NEG,
+     data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_ctc_covs)
+
+lena_18mo_sym_int_ctc_daytype <-
+  lm(itsea_symptoms_centered ~ 
+       num_stress_total * ctc_prop 
+     + day_type,
+     data = lena_18mo_sym_df)
+summary(lena_18mo_sym_int_ctc_daytype)
 ```
 #test other potential predictors (that were correlated in the correlation matrix)
 ```{r}
@@ -765,9 +869,7 @@ lena_18mo_sym_int_awc_weekdays <-
   lm(
     itsea_symptoms ~ 
       crisys_total_6mo_win * awc_prop_centered,
-    data = lena_18mo_sym_df_weekdays,
-    contrasts = (contrasts(lena_18mo_sym_df$crisys_median_factor) = c(-1,1)
-                 )
+    data = lena_18mo_sym_df_weekdays
   )
 summary(lena_18mo_sym_int_awc_weekdays)
 
@@ -775,9 +877,7 @@ lena_18mo_sym_int_ctc_weekdays <-
   lm(
     itsea_symptoms ~ 
       crisys_total_6mo_win * ctc_prop_centered,
-    data = lena_18mo_sym_df_weekdays,
-    contrasts = (contrasts(lena_18mo_sym_df$crisys_median_factor) = c(-1,1)
-                 )
+    data = lena_18mo_sym_df_weekdays
   )
 summary(lena_18mo_sym_int_ctc_weekdays)
 
@@ -785,9 +885,7 @@ lena_18mo_sym_ctc_weekdays <-
   lm(
     itsea_symptoms ~ 
       ctc_prop_centered,
-    data = lena_18mo_sym_df_weekdays,
-    contrasts = (contrasts(lena_18mo_sym_df$crisys_median_factor) = c(-1,1)
-                 )
+    data = lena_18mo_sym_df_weekdays
   )
 summary(lena_18mo_sym_ctc_weekdays)
 ```
@@ -797,6 +895,7 @@ summary(lena_18mo_sym_ctc_weekdays)
 
 count(lena_18mo_sym_df, crisys_median_split)
 
+#interactions - crisys
 lena_18mo_sym_df %>%
   filter(
     !is.na(crisys_median_split)
@@ -813,6 +912,24 @@ lena_18mo_sym_df %>%
   geom_point() +
   geom_smooth(method ="lm")
 
+#interactions - lscr
+lena_18mo_sym_df %>%
+  filter(
+    !is.na(num_stress_total)
+  ) %>% 
+  ggplot(aes(ctc_prop_centered, itsea_symptoms, color = num_stress_total_median_split)) +
+  geom_point() +
+  geom_smooth(method ="lm")
+
+lena_18mo_sym_df %>%
+  filter(
+    !is.na(sum_sev)
+  ) %>% 
+  ggplot(aes(ctc_prop_centered, itsea_symptoms, color = sumsev_total_median_split)) +
+  geom_point() +
+  geom_smooth(method ="lm")
+
+#main effects
 lena_18mo_sym_df %>%
   ggplot(aes(awc_prop_centered, itsea_symptoms)) +
   geom_point() +
@@ -923,14 +1040,16 @@ library(gvlma)
 gvmodel <- gvlma(lena_18mo_sym_int_awc) 
 summary(lena_18mo_sym_int_awc)
 ```
-#probe interaction w simple slope analysis
+#probe awc_prop x crisys_total interaction w simple slope analysis
 ```{r}
-#create new variables: high and low awc_prop_centered
+#create new variables: high and low awc_prop & ctc_prop
 lena_18mo_sym_df <-
   lena_18mo_sym_df %>% 
   mutate(
     awc_prop_hi = scale(awc_prop, scale = F) - sd(awc_prop),
-    awc_prop_low = scale(awc_prop, scale = F) + sd(awc_prop)
+    awc_prop_low = scale(awc_prop, scale = F) + sd(awc_prop),
+    ctc_prop_hi = scale(ctc_prop, scale = F) - sd(awc_prop),
+    ctc_prop_low = scale(ctc_prop, scale = F) + sd(awc_prop)
   )
 
 #run model everything centered again (just for kicks)
@@ -968,6 +1087,39 @@ summary(lena_18mo_sym_int_awc_low)
 #when dependability is low, crisys variable beta is .02966 and it is significant
 #so when dep is low, greater past 6 month stress predicts greater symptoms
 
+```
+#probe ctc_prop x num_stress_total w simple slopes
+```{r}
+#run model everything centered again (just for kicks)
+lena_18mo_sym_int_ctc_numstress <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      num_stress_total * ctc_prop_centered,
+    data = lena_18mo_sym_df 
+                 )
+summary(lena_18mo_sym_int_ctc_numstress)
+
+
+#run model with ctc_prop_hi
+lena_18mo_sym_numstress_ctc_hi <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      num_stress_total * ctc_prop_hi,
+    data = lena_18mo_sym_df 
+                 )
+
+summary(lena_18mo_sym_numstress_ctc_hi)
+#
+
+#run model with ctc_prop_low
+lena_18mo_sym_numstress_ctc_low <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      num_stress_total * ctc_prop_low,
+    data = lena_18mo_sym_df 
+                 )
+
+summary(lena_18mo_sym_numstress_ctc_low)
 ```
 
 #olsrr diagnostics, standardized betas 

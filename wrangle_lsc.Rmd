@@ -1811,9 +1811,7 @@ lscr_T1lg_6mocs <-
   mutate(
     sum_sev_child_win = winsorize(x = sum_sev_childhood, product = 3),
     sum_sev_precon_win = winsorize(x = sum_sev_precon, product = 3),
-    num_stress_total_win = winsorize(x = num_stress_total, product = 3),
-    sum_sev_win = winsorize(x = sum_sev, product = 3),
-    
+    sum_sev_win = winsorize(x = sum_sev, product = 3)
   )
 ```
 
