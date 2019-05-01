@@ -15,25 +15,39 @@ options(repos = r)
 
 #load libraries
 library(tidyverse)
-library("Hmisc")
+library(Hmisc)
 library(car)
 library(corrr)
-library("corrplot")
-library("lme4")
+library(corrplot)
+library(lme4)
 library(ggpubr)
 
 #get files
-crisys_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190413.csv"
-q_18mo_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190413.csv"
-q_18mo_ages_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_ages.csv"
-demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190413.csv"
-lena_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190413.csv"
-lena_follow_and_data_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190413.csv"
-baby_raceth_file <- "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv"
-ibq_file <- "~/Desktop/lena_18mo_symptoms/Data/ibq_scored_20190413.csv"
-lscr_file <- "~/Desktop/lena_18mo_symptoms/Data/lscr_merged_scored_20190412.csv"
+
+##Fran file paths
+#crisys_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190413.csv"
+#q_18mo_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190413.csv"
+#q_18mo_ages_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_ages.csv"
+#demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190413.csv"
+#lena_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190413.csv"
+#lena_follow_and_data_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190413.csv"
+#baby_raceth_file <- "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv"
+#ibq_file <- "~/Desktop/lena_18mo_symptoms/Data/ibq_scored_20190413.csv"
+#lscr_file <- "~/Desktop/lena_18mo_symptoms/Data/lscr_merged_scored_20190412.csv"
+
+##Lucy file paths
+crisys_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/Data_20190413/crisys_6mo_20190430.csv"
+q_18mo_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/Data_20190413/q_18month_scores_20190413.csv"
+q_18mo_ages_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/Data_20190413/q_18month_ages.csv"
+demographics_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/Data_20190413/demographics_20190413.csv"
+lena_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/Data_20190413/lena_cleaned_day1_20190413.csv"
+lena_follow_and_data_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/Data_20190413/lena_followup_and_data_20190413.csv"
+baby_raceth_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/Data_20190413/baby_race_ethnicity.csv"
+ibq_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/Data_20190413/ibq_scored_20190413.csv"
+lscr_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/Data_20190413/lscr_merged_scored_20190412.csv"
 ```
-#Read in and join data
+
+# Read in and join data
 ```{r}
 lena_18mo_sym_df <-
   read_csv(q_18mo_file) %>% 
@@ -87,15 +101,15 @@ lena_18mo_sym_df <-
       rename(
         baby_age_lena = age
       )
-  ) %>% 
-  left_join(
-    read_csv(ibq_file) %>% 
-      select(
-        ID,
-        SUR,
-        NEG
-      )
-  )
+  ) #%>% 
+  #left_join(
+   # read_csv(ibq_file) %>% 
+  #    select(
+  #      ID,
+  #      SUR,
+  #      NEG
+  #    )
+#  )
 
 lena_18mo_sym_df <-
   lena_18mo_sym_df %>% 
@@ -108,7 +122,8 @@ lena_18mo_sym_df <-
 glimpse(lena_18mo_sym_df)
   
 ```
-#demographics in only subset with complete data
+# Demographics in only subset with complete data
+
 ```{r}
 lena_18mo_sym_df_complete <-
   lena_18mo_sym_df %>% 
@@ -163,7 +178,7 @@ lena_18mo_sym_df_complete %>%
   arrange(desc(per))
 ```
 
-#look at distributions of data
+# Look at distributions of data
 ```{r}
 qplot(lena_18mo_sym_df$itsea_competence, 
       geom = "histogram",
@@ -225,7 +240,8 @@ count(lena_18mo_sym_df, day_type)
 count(lena_18mo_sym_df_complete, day_type)
 
 ```
-#Look at means, std, min, max
+
+# Look at means, std, min, max
 ```{r}
 summaries_continuous <-
 lena_18mo_sym_df %>% 
@@ -268,7 +284,8 @@ lena_18mo_sym_df_complete %>%
 
 #is there a way to reformat this data table?
 ```
-#correlation tables
+
+# Correlation tables
 ```{r}
 #lucy's correlation function
 correlations_continuous <-
@@ -281,6 +298,7 @@ correlations_continuous <-
     mom_age_6mo_visit,
     income_needs,
     crisys_total_6mo_win,
+    crisys_neg_total_6mo_win,
     duration,
     awc_daily_rate,
     ctc_daily_rate,
@@ -292,8 +310,8 @@ correlations_continuous <-
     num_stress_preg,
     max_sev,
     sum_sev,
-    SUR,
-    NEG
+    #SUR,
+    #NEG
   )
 
 corr_table <- correlate(correlations_continuous)
@@ -314,29 +332,37 @@ corr_mat
 # flattenCorrMatrix(corr_mat$r, corr_mat$p)
 
 #Insignificant correlations are left blank
-corrplot(corr_mat$r, type="upper", order="hclust", 
-         p.mat = corr_mat$P, sig.level = 0.05, insig = "blank")
+corrplot(
+  corr_mat$r,
+  type = "upper", order = "hclust",
+  p.mat = corr_mat$P, sig.level = 0.05, insig = "blank"
+)
 
 
 ```
-#center continuous variables
+# Center continuous variables
+
 ```{r}
-    #create variable that is median split of crisys, and also a factor
+# create variable that is median split of crisys, and also a factor
 lena_18mo_sym_df <-
   lena_18mo_sym_df %>% 
   mutate(
     crisys_median_split = if_else(
       crisys_total_6mo_win > median(crisys_total_6mo_win, na.rm = TRUE),
       "stressed", "not stressed"
-      ),
+    ),
+    crisys_neg_median_split = if_else(
+      crisys_neg_total_6mo_win > median(crisys_neg_total_6mo_win, na.rm = TRUE),
+      "stressed", "not stressed"
+    ),
     num_stress_total_median_split = if_else(
       num_stress_total > median(num_stress_total, na.rm = TRUE),
       "high lifetime stress", "low lifetime stress"
-      ),
+    ),
     sumsev_total_median_split = if_else(
       sum_sev > median(sum_sev, na.rm = TRUE),
       "intense stress", "not intense stress"
-      )
+    )
   )
 
 lena_18mo_sym_df <-
@@ -459,7 +485,8 @@ lena_18mo_sym_df %>%
   arrange(desc(per))
 ```
 
-#Run main analyses (interactions)
+#Run main analyses (interactions) with crisys_total
+
 ```{r}
 #don't need to specify intercept
 #F-statistic - whether overall model is sig
@@ -471,7 +498,7 @@ lena_18mo_sym_int_awc <-
     itsea_symptoms_centered ~ 
       crisys_total_6mo_win * awc_prop_centered,
     data = lena_18mo_sym_df 
-                 )
+  )
 
 summary(lena_18mo_sym_int_awc)
 #significant, adjusted R squared = .1482
@@ -480,7 +507,8 @@ lena_18mo_sym_int_ctc <-
   lm(
     itsea_symptoms ~ 
       crisys_total_6mo_win * ctc_prop_centered,
-    data = lena_18mo_sym_df)
+    data = lena_18mo_sym_df
+    )
 
 summary(lena_18mo_sym_int_ctc)
 #ns
@@ -489,7 +517,8 @@ lena_18mo_sym_int_cvc <-
   lm(
     itsea_symptoms ~ 
       crisys_total_6mo_win * cvc_prop_centered,
-    data = lena_18mo_sym_df)
+    data = lena_18mo_sym_df
+    )
 summary(lena_18mo_sym_int_cvc)
 #ns
 
@@ -498,7 +527,7 @@ lena_18mo_sym_int_awc_daily_rate <-
     itsea_symptoms_centered ~ 
       crisys_total_6mo_win * awc_daily_rate,
     data = lena_18mo_sym_df 
-                 )
+  )
 summary(lena_18mo_sym_int_awc_daily_rate)
 #ns
 
@@ -507,7 +536,7 @@ lena_18mo_sym_int_ctc_daily_rate <-
     itsea_symptoms_centered ~ 
       crisys_total_6mo_win * ctc_daily_rate,
     data = lena_18mo_sym_df 
-                 )
+  )
 summary(lena_18mo_sym_int_ctc_daily_rate)
 #ns
 
@@ -516,7 +545,7 @@ lena_18mo_sym_int_cvc_daily_rate <-
     itsea_symptoms_centered ~ 
       crisys_total_6mo_win * cvc_daily_rate,
     data = lena_18mo_sym_df 
-                 )
+  )
 summary(lena_18mo_sym_int_cvc_daily_rate)
 #ns
 
@@ -524,7 +553,8 @@ lena_18mo_sym_int_numstress_awc <-
   lm(
     itsea_symptoms_centered ~ 
       num_stress_total * awc_prop,
-    data = lena_18mo_sym_df)
+    data = lena_18mo_sym_df
+    )
 summary(lena_18mo_sym_int_numstress_awc)
 #ns
 
@@ -540,7 +570,8 @@ lena_18mo_sym_int_sumsev_awc <-
   lm(
     itsea_symptoms ~ 
       sum_sev * awc_prop,
-    data = lena_18mo_sym_df)
+    data = lena_18mo_sym_df
+    )
 summary(lena_18mo_sym_int_sumsev_awc)
 #ns
 
@@ -548,7 +579,8 @@ lena_18mo_sym_int_maxsev_awc <-
   lm(
     itsea_symptoms ~ 
       max_sev * awc_prop,
-    data = lena_18mo_sym_df)
+    data = lena_18mo_sym_df
+    )
 summary(lena_18mo_sym_int_maxsev_awc)
 #ns
 
@@ -556,7 +588,8 @@ lena_18mo_sym_int_numstress_ctc <-
   lm(
     itsea_symptoms_centered ~ 
       num_stress_total * ctc_prop,
-    data = lena_18mo_sym_df)
+    data = lena_18mo_sym_df
+    )
 summary(lena_18mo_sym_int_numstress_ctc)
 #all variables are significant!
 
@@ -564,7 +597,8 @@ lena_18mo_sym_int_numstress_preg_ctc <-
   lm(
     itsea_symptoms ~ 
       num_stress_preg * ctc_prop,
-    data = lena_18mo_sym_df)
+    data = lena_18mo_sym_df
+    )
 summary(lena_18mo_sym_int_numstress_preg_ctc)
 #ns
 
@@ -572,7 +606,8 @@ lena_18mo_sym_int_sumsev_ctc <-
   lm(
     itsea_symptoms ~ 
       sum_sev * ctc_prop,
-    data = lena_18mo_sym_df)
+    data = lena_18mo_sym_df
+    )
 summary(lena_18mo_sym_int_sumsev_ctc)
 #all variables are significant
 
@@ -580,20 +615,89 @@ lena_18mo_sym_int_maxsev_ctc <-
   lm(
     itsea_symptoms ~ 
       max_sev * ctc_prop,
-    data = lena_18mo_sym_df)
+    data = lena_18mo_sym_df
+    )
 summary(lena_18mo_sym_int_maxsev_ctc)
 #ns
-
-#explanation of summary output: 
-#Residuals: Residuals are essentially the difference between the actual observed response values (distance to stop dist in our case) and the response values that the model predicted. The Residuals section of the model output breaks it down into 5 summary points. When assessing how well the model fit the data, you should look for a symmetrical distribution across these points on the mean value zero (0).
-#Coefficents: represent intercept and slope terms in model.
-#coefficient standard error: The coefficient Standard Error measures the average amount that the coefficient estimates vary from the actual average value of our response variable. We’d ideally want a lower number relative to its coefficients.
-#coefficient t value: The coefficient t-value is a measure of how many standard deviations our coefficient estimate is far away from 0. We want it to be far away from zero as this would indicate we could reject the null hypothesis
-#Resdiual standard error: Residual Standard Error is measure of the quality of a linear regression fit. Theoretically, every linear model is assumed to contain an error term E. Due to the presence of this error term, we are not capable of perfectly predicting our response variable  from the predictor one. The Residual Standard Error is the average amount that the response  will deviate from the true regression line.
-#R squared: The R-squared (R2) statistic provides a measure of how well the model is fitting the actual data. It takes the form of a proportion of variance. R2 is a measure of the linear relationship between our predictor variable and our response / target variable. It always lies between 0 and 1
-#F-statistic is a good indicator of whether there is a relationship between our predictor and the response variables. The further the F-statistic is from 1 the better it is. However, how much larger the F-statistic needs to be depends on both the number of data points and the number of predictors.
 ```
-#main effects
+
+explanation of summary output: 
+
+Residuals: Residuals are essentially the difference between the actual observed response values (distance to stop dist in our case) and the response values that the model predicted. The Residuals section of the model output breaks it down into 5 summary points. When assessing how well the model fit the data, you should look for a symmetrical distribution across these points on the mean value zero (0).
+
+Coefficents: represent intercept and slope terms in model.
+
+coefficient standard error: The coefficient Standard Error measures the average amount that the coefficient estimates vary from the actual average value of our response variable. We’d ideally want a lower number relative to its coefficients.
+coefficient t value: The coefficient t-value is a measure of how many standard deviations our coefficient estimate is far away from 0. We want it to be far away from zero as this would indicate we could reject the null hypothesis
+
+Resdiual standard error: Residual Standard Error is measure of the quality of a linear regression fit. Theoretically, every linear model is assumed to contain an error term E. Due to the presence of this error term, we are not capable of perfectly predicting our response variable  from the predictor one. The Residual Standard Error is the average amount that the response  will deviate from the true regression line.
+
+R squared: The R-squared (R2) statistic provides a measure of how well the model is fitting the actual data. It takes the form of a proportion of variance. R2 is a measure of the linear relationship between our predictor variable and our response / target variable. It always lies between 0 and 1
+
+F-statistic is a good indicator of whether there is a relationship between our predictor and the response variables. The further the F-statistic is from 1 the better it is. However, how much larger the F-statistic needs to be depends on both the number of data points and the number of predictors.
+
+#Run main analyses (interactions) with crisys_neg_total
+
+```{r}
+lena_18mo_sym_int_awcprop_neg <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      baby_age_lena + crisys_neg_total_6mo_win * awc_prop_centered,
+    data = lena_18mo_sym_df 
+  )
+
+summary(lena_18mo_sym_int_awcprop_neg)
+
+lena_18mo_sym_int_awcrate_neg <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      baby_age_lena + crisys_neg_total_6mo_win * awc_daily_rate,
+    data = lena_18mo_sym_df 
+  )
+
+summary(lena_18mo_sym_int_awcrate_neg)
+
+
+lena_18mo_sym_int_ctcprop_neg <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      baby_age_lena + crisys_neg_total_6mo_win * ctc_prop_centered,
+    data = lena_18mo_sym_df 
+  )
+
+summary(lena_18mo_sym_int_ctcprop_neg)
+
+
+lena_18mo_sym_int_ctcrate_neg <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      baby_age_lena + crisys_neg_total_6mo_win * ctc_daily_rate,
+    data = lena_18mo_sym_df 
+  )
+
+summary(lena_18mo_sym_int_ctcrate_neg)
+```
+
+```{r}
+lena_18mo_sym_df %>% 
+  ggplot(
+    aes(
+      crisys_neg_total_6mo_win, 
+      itsea_symptoms,
+      color = factor(ctc_daily_rate > median(ctc_daily_rate, na.rm = TRUE))
+    )
+  ) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", se = FALSE, size = 2) +
+  theme_minimal() +
+  labs(
+    color = "above ctc_rate median"
+  )
+```
+
+
+
+# Main effects
 ```{r}
 lena_18mo_sym_awc_cent <- 
   lm(
