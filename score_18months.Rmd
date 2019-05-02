@@ -384,14 +384,14 @@ q_18month_scored <-
         itsea_social
       ), na.rm = TRUE
     ),
-    itsea_symptoms_sum = sum(
+    itsea_symptoms = sum(
       c(
         itsea_intern,
         itsea_extern,
         itsea_negemo
         ), na.rm = TRUE
       ),
-    itsea_competence_sum = sum(
+    itsea_competence = sum(
       c(
         itsea_play,
         itsea_empath,
@@ -817,9 +817,9 @@ q18month_symp <-
         ID,
         survey_date,
         itsea_symptoms_mean,
-        itsea_symptoms_sum,
+        itsea_symptoms,
         itsea_competence_mean,
-        itsea_competence_sum,
+        itsea_competence,
         male
       ), 
     by = "ID") %>% 
