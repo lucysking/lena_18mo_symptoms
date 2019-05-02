@@ -671,11 +671,24 @@ summary(lena_18mo_sym_int_ctcprop_neg)
 lena_18mo_sym_int_ctcrate_neg <- 
   lm(
     itsea_symptoms_centered ~ 
-      baby_age_lena + crisys_neg_total_6mo_win * ctc_daily_rate,
+      baby_age_lena + crisys_neg_total_6mo_win + ctc_daily_rate,
     data = lena_18mo_sym_df 
   )
 
 summary(lena_18mo_sym_int_ctcrate_neg)
+r2_1 <- summary(lena_18mo_sym_int_ctcrate_neg)$r.squared
+
+lena_18mo_sym_int_ctcrate_negX <- 
+  lm(
+    itsea_symptoms_centered ~ 
+      baby_age_lena + crisys_neg_total_6mo_win * ctc_daily_rate,
+    data = lena_18mo_sym_df 
+  )
+
+summary(lena_18mo_sym_int_ctcrate_negX)
+r2_2 <- summary(lena_18mo_sym_int_ctcrate_negX)$r.squared
+
+r2_change <- r2_2 - r2_1
 ```
 
 ```{r}

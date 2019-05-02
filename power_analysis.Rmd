@@ -1,0 +1,41 @@
+---
+title: "power analysis"
+author: "Lucy King"
+date: "5/1/2019"
+output: html_document
+---
+
+```{r}
+#Libraries
+library(pwr)
+```
+
+```{r}
+pwr.f2.test(u = 4, f2 = .20, sig.level = .05, power = .80)
+
+pwr.f2.test(u = 4, f2 = .15, sig.level = .05, power = .80)
+
+pwr.f2.test(u = 4, f2 = .35, sig.level = .05, power = .80)
+```
+
+```{r}
+pwr.f2.test(u = 4, v = 62, f2 = .02, sig.level = .05)
+
+pwr.f2.test(u = 4, v = 62, f2 = .20, sig.level = .05)
+
+pwr.f2.test(u = 4, v = 62, f2 = .35, sig.level = .05)
+```
+
+```{r}
+pwr.f2.test(u = 4, v = 62, sig.level = .05, power = .80)
+
+pwr.f2.test(u = 4, v = 62, sig.level = .05, power = .80)
+
+pwr.f2.test(u = 4, v = 62, sig.level = .05, power = .80)
+```
+
+
+
+
+
+
