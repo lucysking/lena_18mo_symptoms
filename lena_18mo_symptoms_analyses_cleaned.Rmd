@@ -999,8 +999,6 @@ lena_18mo_sym_ctcrate_low <-
   )
 
 summary(lena_18mo_sym_ctcrate_low)
-#when dependability is low, crisys variable beta is .02966 and it is significant
-#so when dep is low, greater past 6 month stress predicts greater symptoms
 
 ```
 #probe (other interactions??) w simple slopes
