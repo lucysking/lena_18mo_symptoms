@@ -17,50 +17,50 @@ demo_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_cs_20190131.csv"
 
 #demo_long_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_demo_20181128.csv"
 demo_mom_long_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_preg_20190131.csv"
-demo_baby_long_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_nb_20190413.csv"
+demo_baby_long_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_nb_20190510.csv"
 
 #dob_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/cs_dob_20181128.csv"
 dob_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/dob_cs_20190131.csv"
 #dob_long_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_dob_20181128.csv"
-dob_long_file <- "~/Desktop/lena_18mo_symptoms/Data/dob_long_20190413.csv"
+dob_long_file <- "~/Desktop/lena_18mo_symptoms/Data/dob_long_20190510.csv"
 
 #visit_date_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/cs_visit_date_20181128.csv"
 visit_date_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_cs_20190131.csv"
 #visit_date_long_6mo_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_6mo_visit_date_20181128.csv"
-visit_date_long_6mo_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_long_6mo_20190413.csv"
+visit_date_long_6mo_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_long_6mo_20190510.csv"
 #visit_dates_long_t1t2_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_t1t2_dates_20181128.csv"
 
 ##To get the following file, first need to run long_t1t2dates_combine.Rmd
-visit_dates_long_t1t2_file <- "~/Desktop/lena_18mo_symptoms/Data/long_t1t2_dates_20190413.csv"
+visit_dates_long_t1t2_file <- "~/Desktop/lena_18mo_symptoms/Data/long_t1t2_dates_20190510.csv"
 
 ```
 #get baby race and ethnicity (workaround for full script w dates not working)
 ```{r}
-baby_raceth <-
-  read_csv(demo_cs_file) %>% 
-  select(
-    ID = record_id,
-    child_race,
-    childrace_describe,
-    child_ethnicity
-  ) %>% 
-  mutate(
-    ID = as.integer(ID)
-  ) %>% 
-  bind_rows(
-    read_csv(demo_baby_long_file) %>% 
-      select(
-        ID = record_id,
-        child_race = baby_race,
-        childrace_describe = baby_race_describe,
-        child_ethnicity = baby_ethnicity
-      ) %>% 
-      mutate(
-        ID = as.integer(ID)
-      )
-  )
-
-write_csv(baby_raceth, "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv")
+# baby_raceth <-
+#   read_csv(demo_cs_file) %>% 
+#   select(
+#     ID = record_id,
+#     child_race,
+#     childrace_describe,
+#     child_ethnicity
+#   ) %>% 
+#   mutate(
+#     ID = as.integer(ID)
+#   ) %>% 
+#   bind_rows(
+#     read_csv(demo_baby_long_file) %>% 
+#       select(
+#         ID = record_id,
+#         child_race = baby_race,
+#         childrace_describe = baby_race_describe,
+#         child_ethnicity = baby_ethnicity
+#       ) %>% 
+#       mutate(
+#         ID = as.integer(ID)
+#       )
+#   )
+# 
+# write_csv(baby_raceth, "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv")
 ```
 
 ```{r}
@@ -253,7 +253,7 @@ demo <-
   demo %>% 
   filter(!is.na(mom_ethnicity))
 
-write_csv(demo, "~/Desktop/lena_18mo_symptoms/Data/demographics_20190413.csv")
+write_csv(demo, "~/Desktop/lena_18mo_symptoms/Data/demographics_20190510.csv")
 
 ```
 

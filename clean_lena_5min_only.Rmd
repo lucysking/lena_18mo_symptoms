@@ -14,7 +14,7 @@ library(hms)
 #lena_5min_file_2 <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/LENAExport_5Minute_new_20190204.csv"
 
 lena_5min_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_20181220_cleaned.csv"
-lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_new_20190412.csv"
+lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_new_20190510.csv"
 
 
 #lena_5min_files <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/individual_5min_format_cleaned"
@@ -428,8 +428,8 @@ lena_followup_and_data <-
 #write_csv(lena_5min_cl_wf, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byID_20190202.csv")
 
 #write_csv(lena_5min_cl_wf, "~/Desktop/BABIES/data/lena_data/lena_cleaned_wf_20190308.csv")
-write_csv(lena_5min_cl_filtered, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190413.csv")
-write_csv(lena_followup_and_data, "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190413.csv")
+write_csv(lena_5min_cl_filtered, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190510.csv")
+write_csv(lena_followup_and_data, "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190510.csv")
 
 
   

@@ -10,20 +10,23 @@ library(psych)
 library(corrr)
 
 #Paramaters
-crisys_preg_file <- "~/Desktop/BABIES/lena_symptoms/data/crisys_preg_20190418.csv"
+#crisys_preg_file <- "~/Desktop/BABIES/lena_symptoms/data/crisys_preg_20190418.csv"
+crisys_preg_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_preg_20190202.csv"
 
-crisys_nb_cs_file <- "~/Desktop/BABIES/lena_symptoms/data/crisys_nb_20190418.csv"
-#crisys_nb_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_nb_20190413.csv"
+#crisys_nb_cs_file <- "~/Desktop/BABIES/lena_symptoms/data/crisys_nb_20190418.csv"
+crisys_nb_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_nb_20190510.csv"
 
-crisys_6mo_lg_file <- "~/Desktop/BABIES/lena_symptoms/data/crisys_6mo_long_20190418.csv" 
-#crisys_6mo_lg_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_long_20190413.csv"
+#crisys_6mo_lg_file <- "~/Desktop/BABIES/lena_symptoms/data/crisys_6mo_long_20190418.csv" 
+crisys_6mo_lg_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_long_20190510.csv"
 
-crisys_6mo_cs_file <- "~/Desktop/BABIES/lena_symptoms/data/crysis_6mo_cs_20190418.csv" 
-#crisys_6mo_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_cs_20190202.csv"
+#crisys_6mo_cs_file <- "~/Desktop/BABIES/lena_symptoms/data/crysis_6mo_cs_20190418.csv" 
+crisys_6mo_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_cs_20190202.csv"
 
 
 #Functions
-source("~/Desktop/BABIES/lena_symptoms/lena_18mo_symptoms/winsorize.R")
+#source("~/Desktop/BABIES/lena_symptoms/lena_18mo_symptoms/winsorize.R")
+source("~/Desktop/lena_18mo_symptoms/winsorize.R")
+
 ```
 
 # Score crisys based on all items
@@ -327,7 +330,9 @@ crisys_6mo %>%
   ggplot(aes(crisys_total_6mo_win)) +
   geom_histogram(bins = 20)
 
-write_csv(crisys_6mo, "~/Desktop/BABIES/lena_symptoms/fran_box_data/Data_20190413/crisys_6mo_20190430.csv")
+#write_csv(crisys_6mo, "~/Desktop/BABIES/lena_symptoms/fran_box_data/Data_20190413/crisys_6mo_20190430.csv")
+write_csv(crisys_6mo, "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190510.csv")
+
 ```
 
 ```

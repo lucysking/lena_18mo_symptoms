@@ -18,9 +18,9 @@ library(GPArotation)
 
 #Parameters
 #q_18month_file <- "~/Desktop/BABIES/r01_winter_2019/data/questionnaires_18mo_20181204.csv"
-q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_cs_datecleaned_20190413.csv"
-q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_long_datecleaned_20190413.csv"
-demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190413.csv"
+q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_cs_datecleaned_20190510.csv"
+q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_long_datecleaned_20190510.csv"
+demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190510.csv"
 ```
 
 **Read in data**
@@ -840,7 +840,7 @@ q18month_symp <-
   ) %>% 
   distinct()
 
-write_csv(q18month_symp, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190413.csv")
+write_csv(q18month_symp, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190510.csv")
 ```
 ##Select scores for all measures
 ```{r}
@@ -879,24 +879,11 @@ q18month_scores <-
     by = "ID"
     )
 
-write_csv(q18month_scores, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scored_20190413.csv") #this one just has the calculated scores
+write_csv(q18month_scores, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scored_20190510.csv") #this one just has the calculated scores
 
-write_csv(q_18month_scored, "~/Desktop/lena_18mo_symptoms/Data/q_18month_20190413.csv") #this one has all the original variables as well as the scores
+write_csv(q_18month_scored, "~/Desktop/lena_18mo_symptoms/Data/q_18month_20190510.csv") #this one has all the original variables as well as the scores
 
 ```
 #note: MBCDI norm scoring was done manually after this step, using the documents "mbcdi_vocab_production_male_norms.csv" and "mbcdi_vocab_production_female_norms.csv"
-```{r}
-#to get around error in itsea scoring to get baby_age_18month date for lena symptoms project
-q_18month <-
-  q_18month %>% 
-  mutate(
-    survey_date = parse_date_time(survey_date, orders = c("ymd", "mdy")),
-    baby_age_18month = (baby_dob %--% survey_date) / months(1),
-    baby_age_18month_int = as.integer(baby_age_18month)
-  ) %>% 
-  distinct()
-
-write_csv(q_18month, "~/Desktop/lena_18mo_symptoms/Data/q_18month_ages.csv")
-```
 
 
