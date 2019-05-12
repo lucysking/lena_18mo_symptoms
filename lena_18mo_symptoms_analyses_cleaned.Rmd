@@ -21,6 +21,7 @@ library(corrr)
 library(corrplot)
 library(lme4)
 library(ggpubr)
+library(modelr)
 
 #get files
 
@@ -56,14 +57,6 @@ lena_18mo_sym_df <-
     itsea_symptoms,
     itsea_competence,
     baby_age_18month
-  # ) %>% 
-  # left_join(
-  #   read_csv(q_18mo_ages_file) %>% 
-  #     select(
-  #       ID,
-  #       baby_age_18month,
-  #       baby_age_18month_int
-  #     )
   ) %>% 
   left_join(
     read_csv(crisys_file) 
@@ -93,27 +86,21 @@ lena_18mo_sym_df <-
         childrace_describe,
         child_ethnicity
       )
-  # ) %>% 
-  # left_join(
-  #   read_csv(baby_raceth_file) %>% 
-  #     select(
-  #       -childrace_describe
-  #     )
   ) %>% 
   left_join(
     read_csv(lena_file) %>% 
       rename(
         baby_age_lena = age
       )
-  ) #%>% 
-  #left_join(
-   # read_csv(ibq_file) %>% 
-  #    select(
-  #      ID,
-  #      SUR,
-  #      NEG
-  #    )
-#  )
+  ) %>% 
+  left_join(
+    read_csv(ibq_file) %>% 
+      select(
+        ID,
+        SUR,
+        NEG
+      )
+  )
 
 lena_18mo_sym_df <-
   lena_18mo_sym_df %>% 
@@ -272,29 +259,13 @@ lena_18mo_sym_df_complete %>%
 
 # Look at distributions of data
 ```{r}
-qplot(lena_18mo_sym_df$itsea_competence, 
-      geom = "histogram",
-      binwidth = .05)
-
-qplot(lena_18mo_sym_df$itsea_symptoms, 
-      geom = "histogram",
-      binwidth = .05)
-
-qplot(lena_18mo_sym_df$baby_age_18month, 
-      geom = "histogram",
-      binwidth = .5)
-
-qplot(lena_18mo_sym_df$crisys_total_6mo, 
-      geom = "histogram",
-      binwidth = .5)
-
 qplot(lena_18mo_sym_df$income_needs, 
       geom = "histogram",
       binwidth = .1)
 
 qplot(lena_18mo_sym_df$education, 
       geom = "histogram",
-      binwidth = .1)
+      binwidth = 1)
 
 qplot(lena_18mo_sym_df$baby_age_lena, 
       geom = "histogram",
@@ -316,20 +287,19 @@ qplot(lena_18mo_sym_df$cvc_prop,
       geom = "histogram",
       binwidth = .05)
 
-qplot(lena_18mo_sym_df$num_stress_total, 
+qplot(lena_18mo_sym_df$ctc_daily_rate, 
       geom = "histogram",
-      binwidth = .05)
+      binwidth = 10)
 
-qplot(lena_18mo_sym_df$num_stress_preg, 
+qplot(lena_18mo_sym_df$awc_daily_rate, 
       geom = "histogram",
-      binwidth = .05)
+      binwidth = 50)
 
-qplot(lena_18mo_sym_df$max_sev, 
+qplot(lena_18mo_sym_df$cvc_daily_rate, 
       geom = "histogram",
-      binwidth = .05)
+      binwidth = 10)
 
 count(lena_18mo_sym_df, day_type)
-count(lena_18mo_sym_df_complete, day_type)
 
 ```
 
@@ -346,7 +316,10 @@ lena_18mo_sym_df %>%
       crisys_total_6mo,
       awc_prop, 
       ctc_prop, 
-      cvc_prop
+      cvc_prop,
+      ctc_daily_rate,
+      awc_daily_rate,
+      cvc_daily_rate
       ), 
     funs(
         mean, 
@@ -366,7 +339,10 @@ lena_18mo_sym_df_complete %>%
       crisys_total_6mo,
       awc_prop, 
       ctc_prop, 
-      cvc_prop
+      cvc_prop,
+      ctc_daily_rate,
+      awc_daily_rate,
+      cvc_daily_rate
       ), 
     list(
         ~mean, 
@@ -376,7 +352,6 @@ lena_18mo_sym_df_complete %>%
         ~median), 
     na.rm = TRUE)
 
-#is there a way to reformat this data table?
 ```
 
 # Correlation tables
@@ -399,12 +374,12 @@ correlations_continuous <-
     awc_prop,
     ctc_prop,
     cvc_prop,
-    num_stress_total,
-    num_stress_preg,
-    max_sev,
-    sum_sev
-    #SUR,
-    #NEG
+    #num_stress_total,
+    #num_stress_preg,
+    #max_sev,
+    #sum_sev,
+    SUR,
+    NEG
   )
 
 corr_table <- correlate(correlations_continuous)
@@ -455,7 +430,6 @@ lena_18mo_sym_df <-
   )
 
 #create factor with crisys_median_split variables
-#need to do this??
 lena_18mo_sym_df <-
   lena_18mo_sym_df %>% 
   mutate(
@@ -481,7 +455,7 @@ lena_18mo_sym_df <-
 ```
 #test associations among categorical variables 
 ```{r}
-##(categorical variables = crisys_median_split, education, male, day_type)
+#categorical variables = crisys_median_split, education, male, day_type
 
 ##Is day_type related to daily rates, props, symptoms, competence?
 
@@ -490,11 +464,11 @@ lena_18mo_sym_df %>%
 #49 weekdays, 21 weekends
 
 t.test(lena_18mo_sym_df$awc_daily_rate ~ lena_18mo_sym_df$day_type)
-#no difference
+#ns
 t.test(lena_18mo_sym_df$ctc_daily_rate ~ lena_18mo_sym_df$day_type)
-#no difference
+#ns
 t.test(lena_18mo_sym_df$cvc_daily_rate ~ lena_18mo_sym_df$day_type)
-#higher cvc daily rate in weekday vs. weekend group, t(31.644) = 2.2196, p=.03374
+#higher cvc daily rate in weekday vs. weekend group
 t.test(lena_18mo_sym_df$awc_prop ~ lena_18mo_sym_df$day_type)
 #ns
 t.test(lena_18mo_sym_df$ctc_prop ~ lena_18mo_sym_df$day_type)
@@ -506,30 +480,8 @@ t.test(lena_18mo_sym_df$itsea_symptoms ~ lena_18mo_sym_df$day_type)
 t.test(lena_18mo_sym_df$itsea_competence ~ lena_18mo_sym_df$day_type)
 #ns
 
-#Are there differences among stressed vs. non-stressed groups by education, income_needs, daily rates, props, itsea_symptoms, itsea_competence?
-
-t.test(lena_18mo_sym_df$income_needs ~ lena_18mo_sym_df$crisys_median_split)
-#ns, higher in not stressed
-t.test(lena_18mo_sym_df$awc_daily_rate ~ lena_18mo_sym_df$crisys_median_split)
-#ns, higher in stressed
-t.test(lena_18mo_sym_df$ctc_daily_rate ~ lena_18mo_sym_df$crisys_median_split)
-#ns
-t.test(lena_18mo_sym_df$cvc_daily_rate ~ lena_18mo_sym_df$crisys_median_split)
-#ns
-t.test(lena_18mo_sym_df$awc_prop ~ lena_18mo_sym_df$crisys_median_split)
-#ns
-t.test(lena_18mo_sym_df$ctc_prop ~ lena_18mo_sym_df$crisys_median_split)
-#ns
-t.test(lena_18mo_sym_df$cvc_prop ~ lena_18mo_sym_df$crisys_median_split)
-#ns
-t.test(lena_18mo_sym_df$itsea_symptoms ~ lena_18mo_sym_df$crisys_median_split)
-#higher in stressed group, t(37.844) = -2.1569, p = .037
-t.test(lena_18mo_sym_df$itsea_competence ~ lena_18mo_sym_df$crisys_median_split)
-#ns
-
 ```
 # Main effects
-
 ```{r}
 #lena variables on itsea symptoms
 lena_18mo_sym_awcprop <- 
@@ -540,7 +492,7 @@ lena_18mo_sym_awcprop <-
                  )
 
 summary(lena_18mo_sym_awcprop)
-#
+#ns
 
 lena_18mo_sym_ctcprop <- 
   lm(
@@ -549,7 +501,7 @@ lena_18mo_sym_ctcprop <-
     data = lena_18mo_sym_df)
 
 summary(lena_18mo_sym_ctcprop)
-#
+#ns 
 
 lena_18mo_sym_cvcprop <- 
   lm(
@@ -557,7 +509,7 @@ lena_18mo_sym_cvcprop <-
       cvc_prop_centered,
     data = lena_18mo_sym_df)
 summary(lena_18mo_sym_cvcprop)
-#
+#ns
 
 lena_18mo_sym_awcrate <- 
   lm(
@@ -565,7 +517,7 @@ lena_18mo_sym_awcrate <-
       awc_daily_rate,
     data = lena_18mo_sym_df)
 summary(lena_18mo_sym_awcrate)
-#
+#ns
 
 lena_18mo_sym_ctcrate <- 
   lm(
@@ -573,7 +525,7 @@ lena_18mo_sym_ctcrate <-
       ctc_daily_rate,
     data = lena_18mo_sym_df)
 summary(lena_18mo_sym_ctcrate)
-#
+#sig
 
 lena_18mo_sym_cvcrate <- 
   lm(
@@ -581,39 +533,6 @@ lena_18mo_sym_cvcrate <-
       cvc_daily_rate,
     data = lena_18mo_sym_df)
 summary(lena_18mo_sym_cvcrate)
-
-#lscr variables on itsea symptoms
-lena_18mo_sym_numstress <- 
-  lm(
-    itsea_symptoms ~ 
-      num_stress_total,
-    data = lena_18mo_sym_df)
-summary(lena_18mo_sym_numstress)
-#
-
-lena_18mo_sym_sumsev <- 
-  lm(
-    itsea_symptoms ~ 
-      sum_sev,
-    data = lena_18mo_sym_df)
-summary(lena_18mo_sym_sumsev)
-#
-
-lena_18mo_sym_numstress_preg <- 
-  lm(
-    itsea_symptoms ~ 
-     num_stress_preg,
-    data = lena_18mo_sym_df)
-summary(lena_18mo_sym_numstress_preg)
-#no main effect
-
-lena_18mo_sym_maxsev <- 
-  lm(
-    itsea_symptoms ~ 
-     max_sev,
-    data = lena_18mo_sym_df)
-summary(lena_18mo_sym_maxsev)
-#no main effect
 
 #crisys on itsea symptoms
 
@@ -623,10 +542,16 @@ lena_18mo_sym_crisys <-
      crisys_neg_total_6mo_win,
     data = lena_18mo_sym_df)
 summary(lena_18mo_sym_crisys)
+#sig
 
-#visualize interesting stuff
+#visualize significant effects
 lena_18mo_sym_df %>%
-  ggplot(aes(ctc_prop, itsea_symptoms)) +
+  ggplot(aes(crisys_neg_total_6mo_win, itsea_symptoms)) +
+  geom_point() +
+  geom_smooth(method ="lm")
+
+lena_18mo_sym_df %>%
+  ggplot(aes(ctc_daily_rate, itsea_symptoms)) +
   geom_point() +
   geom_smooth(method ="lm")
 ```
@@ -673,7 +598,7 @@ lena_18mo_sym_int_ctcrate_neg <-
 summary(lena_18mo_sym_int_ctcrate_neg)
 
 ```
-#calculate R2 change from just interaction term in crisys x ctcrate --> 18 mo sx
+#calculate R2 change from just interaction term in crisys x ctcrate --> itsea symptoms
 ```{r}
 #model with all predictors separate
 lena_18mo_sym_int_ctcrate_neg <- 
@@ -698,29 +623,6 @@ r2_2 <- summary(lena_18mo_sym_int_ctcrate_negX)$r.squared
 
 #change from just predictors to predictors & interaction term
 r2_change <- r2_2 - r2_1
-```
-
-#visualize ctcrate x crisys --> 18month symptoms effect
-```{r}
-lena_18mo_sym_df %>% 
-  ggplot(
-    aes(
-      crisys_neg_total_6mo_win, 
-      itsea_symptoms,
-      color = factor(ctc_daily_rate > median(ctc_daily_rate, na.rm = TRUE))
-    )
-  ) +
-  geom_point(size = 3) +
-  geom_smooth(method = "lm", se = FALSE, size = 2) +
-  theme_minimal() +
-  labs(
-    color = "above ctc_rate median"
-  )
-```
-
-#test other potential predictors (that were correlated in the correlation matrix)
-```{r}
-
 ```
 #models just within weekday recordings
 ```{r}
@@ -770,189 +672,6 @@ lena_18mo_sym_int_ctcrate_neg_weekdays <-
 summary(lena_18mo_sym_int_ctcrate_neg_weekdays)
 ```
 
-#visualize interactions & main effects
-```{r}
-
-count(lena_18mo_sym_df, crisys_median_split)
-
-##CRISYS
-#interactions - prop variables
-lena_18mo_sym_df %>%
-  filter(
-    !is.na(crisys_median_split)
-  ) %>% 
-  ggplot(aes(awc_prop_centered, itsea_symptoms, color = crisys_median_split)) +
-  geom_point() +
-  geom_smooth(method ="lm")
-
-lena_18mo_sym_df %>%
-  filter(
-    !is.na(crisys_median_split)
-  ) %>% 
-  ggplot(aes(ctc_prop_centered, itsea_symptoms, color = crisys_median_split)) +
-  geom_point() +
-  geom_smooth(method ="lm")
-
-#interactions - daily rate variables
-lena_18mo_sym_df %>%
-  filter(
-    !is.na(crisys_median_split)
-  ) %>% 
-  ggplot(aes(awc_daily_rate, itsea_symptoms, color = crisys_median_split)) +
-  geom_point() +
-  geom_smooth(method ="lm")
-
-lena_18mo_sym_df %>%
-  filter(
-    !is.na(crisys_median_split)
-  ) %>% 
-  ggplot(aes(ctc_daily_rate, itsea_symptoms, color = crisys_median_split)) +
-  geom_point() +
-  geom_smooth(method ="lm")
-
-#main effects
-
-#prop variables
-lena_18mo_sym_df %>%
-  ggplot(aes(awc_prop_centered, itsea_symptoms)) +
-  geom_point() +
-  geom_smooth(method ="lm")
-
-lena_18mo_sym_df %>%
-  ggplot(aes(ctc_prop_centered, itsea_symptoms)) +
-  geom_point() +
-  geom_smooth(method ="lm")
-
-#daily rate variables
-lena_18mo_sym_df %>%
-  ggplot(aes(awc_daily_rate, itsea_symptoms)) +
-  geom_point() +
-  geom_smooth(method ="lm")
-
-lena_18mo_sym_df %>%
-  ggplot(aes(ctc_daily_rate, itsea_symptoms)) +
-  geom_point() +
-  geom_smooth(method ="lm")
-
-#LSCR
-#interactions
-lena_18mo_sym_df %>%
-  filter(
-    !is.na(num_stress_total)
-  ) %>% 
-  ggplot(aes(ctc_prop_centered, itsea_symptoms, color = num_stress_total_median_split)) +
-  geom_point() +
-  geom_smooth(method ="lm")
-
-lena_18mo_sym_df %>%
-  filter(
-    !is.na(sum_sev)
-  ) %>% 
-  ggplot(aes(ctc_prop_centered, itsea_symptoms, color = sumsev_total_median_split)) +
-  geom_point() +
-  geom_smooth(method ="lm")
-
-
-```
-#examine LENA follow-up data
-```{r}
-#Within all ps with followup data and awc_prop
-lena_followup_and_data <-
-  read_csv(lena_follow_and_data_file)
-
-#see if percent_mother associated with awc_depend_prop
-lena_momtime_awc <- 
-  lm(
-    awc_prop ~ percent_mother,
-    data = lena_followup_and_data 
-    )
-summary(lena_momtime_awc)
-#association not significant (p = .69)
-
-#cor.test (use spearman's correlation if data is weirdly distributed to check correlation)
-
-#visualize regression
-lena_followup_and_data %>% 
-ggplot(aes(percent_mother, awc_prop)) +
-  geom_point() +
-  geom_smooth(method ="lm")
-
-#report stats on percent_mother
-lena_followup_and_data %>% 
-  summarize_at(
-    vars(
-    percent_mother
-    ), 
-    list(~mean, ~sd, ~min, ~max),
-    na.rm = TRUE)
-
-#Within just subset of complete cases
- 
-lena_follow_complete_data <-
-  lena_18mo_sym_df_complete %>% 
-  left_join(
-    read_csv(lena_follow_and_data_file),
-    by = "ID"
-  )
-
-lena_follow_complete_data %>% 
-  summarize_at(
-    vars(
-    percent_mother
-    ), 
-    list(~mean, ~sd, ~min, ~max),
-    na.rm = TRUE) 
-
-lena_follow_complete_data %>% 
-  count(percent_mother) %>% 
-  mutate(total = sum(!is.na(n)))
-
-#see if percent_mother associated with weekday vs weekend
-t.test(lena_follow_complete_data$percent_mother ~ lena_follow_complete_data$day_type.x)
-  
-```
-
-
-#Regression diagnostics - focusing on most significant interaction (crisys * ctcrate)
-```{r}
-#assessing outliers
-outlierTest(lena_18mo_sym_int_ctcrate_neg) # Bonferonni p-value for most extreme obs
-#not sure why this didn't work
-qqPlot(lena_18mo_sym_int_ctcrate_neg, main="QQ Plot") #qq plot for studentized resid 
-leveragePlots(lena_18mo_sym_int_ctcrate_neg) # leverage plots
-
-#calculate standardized estimates
-#library(sjstats)
-#no covs model
-#std_beta(lena_18mo_sym_int_awc)
-#covs model
-#std_beta(lena_18mo_sym_int_awc_covs)
-
-# Normality of Residuals
-# qq plot for studentized resid
-qqPlot(lena_18mo_sym_int_ctcrate_neg, main="QQ Plot")
-# distribution of studentized residuals
-# library(MASS)
-# sresid <- studres(lena_18mo_sym_int_awc) 
-# hist(lena_18mo_sym_int_awc, freq=FALSE, 
-#    main="Distribution of Studentized Residuals") #error - x must be numeric
-# xfit<-seq(min(sresid),max(sresid),length=40) 
-# yfit<-dnorm(xfit) 
-# lines(xfit, yfit)
-
-#conclusions about qqplot: 
-#leverage plots: 
-
-# Evaluate Collinearity
-vif(lena_18mo_sym_int_ctcrate_neg) # variance inflation factors 
-sqrt(vif(lena_18mo_sym_int_ctcrate_neg)) > 2 # problem?
-#may be problem (crisys and interaction)
-
-# Global test of model assumptions
-library(gvlma)
-gvmodel <- gvlma(lena_18mo_sym_int_ctcrate_neg) 
-summary(lena_18mo_sym_int_ctcrate_neg)
-```
 #simple slopes:  crisys * ctcrate interaction 
 ```{r}
 #create new variables: high and low ctc_daily_rate
@@ -988,38 +707,151 @@ lena_18mo_sym_ctcrate_low <-
 summary(lena_18mo_sym_ctcrate_low)
 
 ```
-#probe (other interactions??) w simple slopes
+#visualize interactions using crisys_median_split
 ```{r}
-#run model everything centered again (just for kicks)
-# lena_18mo_sym_int_ctc_numstress <- 
-#   lm(
-#     itsea_symptoms_centered ~ 
-#       num_stress_total * ctc_prop_centered,
-#     data = lena_18mo_sym_df 
-#                  )
-# summary(lena_18mo_sym_int_ctc_numstress)
-# 
-# 
-# #run model with ctc_prop_hi
-# lena_18mo_sym_numstress_ctc_hi <- 
-#   lm(
-#     itsea_symptoms_centered ~ 
-#       num_stress_total * ctc_prop_hi,
-#     data = lena_18mo_sym_df 
-#                  )
-# 
-# summary(lena_18mo_sym_numstress_ctc_hi)
-# #
-# 
-# #run model with ctc_prop_low
-# lena_18mo_sym_numstress_ctc_low <- 
-#   lm(
-#     itsea_symptoms_centered ~ 
-#       num_stress_total * ctc_prop_low,
-#     data = lena_18mo_sym_df 
-#                  )
-# 
-# summary(lena_18mo_sym_numstress_ctc_low)
+
+count(lena_18mo_sym_df, crisys_median_split)
+
+#lena prop variables
+lena_18mo_sym_df %>%
+  filter(
+    !is.na(crisys_median_split)
+  ) %>% 
+  ggplot(aes(awc_prop_centered, itsea_symptoms, color = crisys_median_split)) +
+  geom_point() +
+  geom_smooth(method ="lm")
+
+lena_18mo_sym_df %>%
+  filter(
+    !is.na(crisys_median_split)
+  ) %>% 
+  ggplot(aes(ctc_prop_centered, itsea_symptoms, color = crisys_median_split)) +
+  geom_point() +
+  geom_smooth(method ="lm")
+
+#lena daily rate variables
+lena_18mo_sym_df %>%
+  filter(
+    !is.na(crisys_median_split)
+  ) %>% 
+  ggplot(aes(awc_daily_rate, itsea_symptoms, color = crisys_median_split)) +
+  geom_point() +
+  geom_smooth(method ="lm")
+
+lena_18mo_sym_df %>%
+  filter(
+    !is.na(crisys_median_split)
+  ) %>% 
+  ggplot(aes(ctc_daily_rate, itsea_symptoms, color = crisys_median_split)) +
+  geom_point() +
+  geom_smooth(method ="lm")
+
+```
+
+##visualizations of ctcrate x crisys --> itsea symptoms 
+#1. Simple graph with no error ribbon
+#2. Slopes & +1SD, -1SD around mean against ctc rates residualized for baby age at lena
+```{r}
+#1. simple interaction with non-residualized data
+lena_18mo_sym_df %>% 
+  ggplot(
+    aes(
+      crisys_neg_total_6mo_win, 
+      itsea_symptoms,
+      color = factor(ctc_daily_rate > median(ctc_daily_rate, na.rm = TRUE))
+    )
+  ) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", se = FALSE, size = 2) +
+  theme_minimal() +
+  labs(
+    color = "above ctc_rate median"
+  )
+
+#2. make plot with lines = 1SD above, 1SD below mean; points = residuals
+
+#make residuals for symptoms controlling for baby_age_lena
+symptoms_residuals_lena_age <-
+  lm(
+    itsea_symptoms_centered ~ 
+      baby_age_lena,
+    data = lena_18mo_sym_df 
+  )
+
+add_residuals(lena_18mo_sym_df, symptoms_residuals_lena_age, var = "resid_lena_age")
+
+#setting intercept and slope
+modsummary_lo <- summary(lena_18mo_sym_ctcrate_low)
+intercept_lo <- modsummary_lo$coefficients[1]
+slope_lo <- modsummary_lo$coefficients[3]
+
+modsummary_hi <- summary(lena_18mo_sym_ctcrate_hi)
+intercept_hi <- modsummary_hi$coefficients[1]
+slope_hi <- modsummary_hi$coefficients[3]
+
+simple_slopes_ctcdailyrate <-
+  tribble(
+    ~effect, ~intercept, ~slope,
+    "lower", intercept_lo, slope_lo,
+    "higher", intercept_hi, slope_hi
+  )
+
+#graph
+lena_18mo_sym_df %>% 
+  ggplot(aes(crisys_neg_total_6mo, itsea_symptoms_centered)) +
+  geom_jitter(alpha = 1/2, size = 3) +
+  geom_abline(
+    data = simple_slopes_ctcdailyrate,
+    aes(
+      intercept = intercept,
+      slope = slope,
+      color = factor(effect)
+    ),
+    size = 3
+  ) +
+  scale_color_manual(
+    labels = c("+ 1SD", "-1SD"),
+    values = c("purple", "orange")
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(size = 18, hjust = .5),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 18), 
+    legend.text = element_text(size = 16),
+    legend.position = "bottom"
+  ) +
+  labs(
+    title = "Slope of 18 mo sx by crisys score at\n lower and higher levels of daily ctc",
+    color = "CTC daily rate",
+    x = "CRISYS score",
+    y = "18 month symptoms"
+  )
+
+```
+
+#Regression diagnostics - focusing on most significant interaction (crisys * ctcrate)
+```{r}
+#assessing outliers
+outlierTest(lena_18mo_sym_int_ctcrate_neg) # Bonferonni p-value for most extreme obs
+qqPlot(lena_18mo_sym_int_ctcrate_neg, main="QQ Plot") #qq plot for studentized resid 
+leveragePlots(lena_18mo_sym_int_ctcrate_neg) # leverage plots
+
+# Normality of Residuals
+# qq plot for studentized resid
+qqPlot(lena_18mo_sym_int_ctcrate_neg, main="QQ Plot")
+# distribution of studentized residuals
+
+# Evaluate Collinearity
+vif(lena_18mo_sym_int_ctcrate_neg) # variance inflation factors 
+sqrt(vif(lena_18mo_sym_int_ctcrate_neg)) > 2 
+
+# Global test of model assumptions
+library(gvlma)
+gvmodel <- gvlma(lena_18mo_sym_int_ctcrate_neg) 
+summary(lena_18mo_sym_int_ctcrate_neg)
 ```
 
 #olsrr diagnostics, standardized betas: ctcrate * crisys
@@ -1050,9 +882,47 @@ print(ols_regress_model_low)
 
 ##olsrr diagnostics
 plot(lena_18mo_sym_int_awcrate_neg)
-#residuals vs. fitted should be straight line
-#normal q-q should follow line
-#scale location shows if residuals are spread equally along the ranges of predictors. This is how you can check the assumption of equal variance (homoscedasticity). It’s good if you see a horizontal line with equally (randomly) spread points.
-#residuals vs leverage: allows identification of potentially influential outliers to the model. Influential ones are outside cook's distance. 
 
 ```
+#examine LENA follow-up data
+```{r}
+#Within all ps with followup data and awc_prop
+lena_followup_and_data <-
+  read_csv(lena_follow_and_data_file)
+
+#see if percent_mother associated with ctc_daily_rate
+ctc_daily_rate <- 
+  lm(
+    ctc_daily_rate ~ percent_mother,
+    data = lena_followup_and_data 
+    )
+summary(ctc_daily_rate)
+#association not significant (p = .69)
+
+#visualize regression
+lena_followup_and_data %>% 
+ggplot(aes(percent_mother, ctc_daily_rate)) +
+  geom_point() +
+  geom_smooth(method ="lm")
+
+#report stats on percent_mother
+lena_followup_and_data %>% 
+  summarize_at(
+    vars(
+    percent_mother
+    ), 
+    list(~mean, ~sd, ~min, ~max),
+    na.rm = TRUE)
+
+#see if percent_mother associated with weekday vs weekend
+t.test(lena_followup_and_data$percent_mother ~ lena_followup_and_data$day_type)
+  
+```
+
+#save dataframe used for analyses 
+```{r}
+#this is a check to make sure nothing looks weird
+write_csv(lena_18mo_sym_df, "~/Desktop/lena_18mo_symptoms/data_for_analyses_20190510.csv")
+```
+```
+

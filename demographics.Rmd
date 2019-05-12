@@ -34,37 +34,8 @@ visit_date_long_6mo_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_long_6
 visit_dates_long_t1t2_file <- "~/Desktop/lena_18mo_symptoms/Data/long_t1t2_dates_20190510.csv"
 
 ```
-#get baby race and ethnicity (workaround for full script w dates not working)
-```{r}
-# baby_raceth <-
-#   read_csv(demo_cs_file) %>% 
-#   select(
-#     ID = record_id,
-#     child_race,
-#     childrace_describe,
-#     child_ethnicity
-#   ) %>% 
-#   mutate(
-#     ID = as.integer(ID)
-#   ) %>% 
-#   bind_rows(
-#     read_csv(demo_baby_long_file) %>% 
-#       select(
-#         ID = record_id,
-#         child_race = baby_race,
-#         childrace_describe = baby_race_describe,
-#         child_ethnicity = baby_ethnicity
-#       ) %>% 
-#       mutate(
-#         ID = as.integer(ID)
-#       )
-#   )
-# 
-# write_csv(baby_raceth, "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv")
-```
-
-```{r}
 ##Read in and join data 
+```{r}
 dates <-
   read_csv(dob_cs_file) %>% 
   select(
@@ -131,7 +102,7 @@ dates <-
 glimpse(dates)
 
 ```
-
+#continue joining data, calculate income-to-needs
 ```{r}
 demo <-
   read_csv(demo_cs_file) %>% 
@@ -255,6 +226,16 @@ demo <-
 
 write_csv(demo, "~/Desktop/lena_18mo_symptoms/Data/demographics_20190510.csv")
 
+```
+#look at distributions of demographic info
+```{r}
+qplot(lena_18mo_sym_df$income_needs, 
+      geom = "histogram",
+      binwidth = .1)
+
+qplot(lena_18mo_sym_df$education, 
+      geom = "histogram",
+      binwidth = .1)
 ```
 
 
