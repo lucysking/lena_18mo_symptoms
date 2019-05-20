@@ -6,22 +6,26 @@ output: html_notebook
 ## Environment set up
 
 ```{r load_data}
+# Libraries
 library(tidyverse)
 library(lubridate)
 library(hms)
 
-#lena_5min_file_1 <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/LENAExport_5Minute_20181220_cleaned.csv"
-#lena_5min_file_2 <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/LENAExport_5Minute_new_20190204.csv"
+# Files
 
-lena_5min_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_20181220_cleaned.csv"
-lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_new_20190510.csv"
+## Fran file paths
+#lena_5min_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_20181220_cleaned.csv"
+#lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_new_20190510.csv"
+#lena_5min_files <- "~/Desktop/lena_18mo_symptoms/Data/individual_5min_lsk_format_cleaned"
+#lena_followup_long_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_long_datecleaned_20190412.csv"
+#lena_followup_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_cs_datecleaned_20190216.csv"
 
-
-#lena_5min_files <- "~/Desktop/BABIES/data/lena_data/Exports_Cleaned/individual_5min_format_cleaned"
-lena_5min_files <- "~/Desktop/lena_18mo_symptoms/Data/individual_5min_lsk_format_cleaned"
-
-lena_followup_long_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_long_datecleaned_20190412.csv"
-lena_followup_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_cs_datecleaned_20190216.csv"
+## Lucy file
+lena_5min_file_1 <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/LENAExport_5Minute_20181220_cleaned.csv"
+lena_5min_file_2 <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/LENAExport_5Minute_new_20190510.csv"
+lena_5min_files <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/individual_5min_lsk_format_cleaned"
+lena_followup_long_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_long_datecleaned_20190412.csv"
+lena_followup_cs_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_cs_datecleaned_20190216.csv"
 
 lena_5min_files_df <-
   tibble(
@@ -379,11 +383,7 @@ lena_5min_cl_filtered <-
   lena_5min_cl %>%
   filter(
     ID != 110
-  ) %>% 
-  filter(
-    day == 1
-  )
-  
+  ) 
 ```
 
 ### Merge relevant follow up qs data with cleaned & filtered lena data 
@@ -397,27 +397,25 @@ lena_5min_cl_filtered <-
       day_type == "weekend",
       1, 0
     )
+  ) %>% 
+  rename(
+    baby_age_lena = age
   )
   
 #merge data on lena recording date 
 lena_followup_and_data <- 
-  lena_followup %>% 
+  lena_5min_cl_filtered %>%  
   mutate(
-    date_record = lenaday_date,
     date_record = parse_date_time(date_record, c("ymd", "mdy"))
   ) %>% 
   left_join(
-    lena_5min_cl_filtered,
-    by = "ID", "date_record"
-  ) %>% 
-  select(
-    ID,
-    date_record.x,
-    awc_prop,
-    ctc_daily_rate,
-    percent_mother,
-    day_type
-  )
+    lena_followup %>% 
+      rename(date_record = lenaday_date) %>% 
+      mutate(
+        date_record = parse_date_time(date_record, c("ymd", "mdy"))
+      ), 
+    by = c("ID", "date_record")
+  ) 
 
 ```
 
@@ -429,9 +427,6 @@ lena_followup_and_data <-
 #write_csv(lena_5min_cl_wf, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byID_20190202.csv")
 
 #write_csv(lena_5min_cl_wf, "~/Desktop/BABIES/data/lena_data/lena_cleaned_wf_20190308.csv")
-write_csv(lena_5min_cl_filtered, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190510.csv")
-write_csv(lena_followup_and_data, "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190510.csv")
-
-
-  
+#write_csv(lena_5min_cl_filtered, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190510.csv")
+write_csv(lena_followup_and_data, "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_and_data_20190510.csv")
 ```

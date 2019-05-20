@@ -6,35 +6,38 @@ output: html_document
 ---
 
 ```{r}
-##Libraries
+# Libraries
 library(tidyverse)
 library(lubridate)
-library(readr)
 
-##Parameters
-#demo_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/cs_demo_20181128.csv"
-demo_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_cs_20190131.csv"
 
-#demo_long_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_demo_20181128.csv"
-demo_mom_long_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_preg_20190131.csv"
-demo_baby_long_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_nb_20190510.csv"
+# Files
 
-#dob_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/cs_dob_20181128.csv"
-dob_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/dob_cs_20190131.csv"
-#dob_long_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_dob_20181128.csv"
-dob_long_file <- "~/Desktop/lena_18mo_symptoms/Data/dob_long_20190510.csv"
+# Fran file paths
+#demo_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_cs_20190131.csv"
+#demo_mom_long_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_preg_20190131.csv"
+#demo_baby_long_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_nb_20190510.csv"
+#dob_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/dob_cs_20190131.csv"
+#dob_long_file <- "~/Desktop/lena_18mo_symptoms/Data/dob_long_20190510.csv"
+#visit_date_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_cs_20190131.csv"
+#visit_date_long_6mo_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_long_6mo_20190510.csv"
+#visit_dates_long_t1t2_file <- "~/Desktop/lena_18mo_symptoms/Data/long_t1t2_dates_20190510.csv"
 
-#visit_date_cs_file <- "~/Desktop/BABIES/r01_winter_2019/data/cs_visit_date_20181128.csv"
-visit_date_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_cs_20190131.csv"
-#visit_date_long_6mo_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_6mo_visit_date_20181128.csv"
-visit_date_long_6mo_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_long_6mo_20190510.csv"
-#visit_dates_long_t1t2_file <- "~/Desktop/BABIES/r01_winter_2019/data/long_t1t2_dates_20181128.csv"
+# Lucy file paths
+demo_cs_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/demo_cs_20190131.csv"
+demo_mom_long_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/demo_long_preg_20190131.csv"
+demo_baby_long_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/demo_long_nb_20190510.csv"
+dob_cs_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/dob_cs_20190131.csv"
+dob_long_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/dob_long_20190510.csv"
+visit_date_cs_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/visit_date_cs_20190131.csv"
+visit_date_long_6mo_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/visit_date_long_6mo_20190510.csv"
+visit_dates_long_t1t2_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/long_t1t2_dates_20190510.csv"
 
-##To get the following file, first need to run long_t1t2dates_combine.Rmd
-visit_dates_long_t1t2_file <- "~/Desktop/lena_18mo_symptoms/Data/long_t1t2_dates_20190510.csv"
-
+# Functions
+source("identify_outliers_histogram.R")
 ```
-##Read in and join data 
+
+# Read in and join data 
 ```{r}
 dates <-
   read_csv(dob_cs_file) %>% 
@@ -98,9 +101,6 @@ dates <-
     mom_age_babydob = (mom_dob %--% baby_dob) / years(1),
     baby_age_newborn_visit = (baby_dob %--% date_newborn) / months(1)
   )
-
-glimpse(dates)
-
 ```
 #continue joining data, calculate income-to-needs
 ```{r}
@@ -224,18 +224,13 @@ demo <-
   demo %>% 
   filter(!is.na(mom_ethnicity))
 
-write_csv(demo, "~/Desktop/lena_18mo_symptoms/Data/demographics_20190510.csv")
-
+#write_csv(demo, "~/Desktop/lena_18mo_symptoms/Data/demographics_20190510.csv")
 ```
-#look at distributions of demographic info
-```{r}
-qplot(lena_18mo_sym_df$income_needs, 
-      geom = "histogram",
-      binwidth = .1)
 
-qplot(lena_18mo_sym_df$education, 
-      geom = "histogram",
-      binwidth = .1)
+# Distributions
+```{r}
+identify_outliers_hist(lena_18mo_sym_df, income_needs)
+identify_outliers_hist(lena_18mo_sym_df, education)
 ```
 
 

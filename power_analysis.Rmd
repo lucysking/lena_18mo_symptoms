@@ -7,11 +7,13 @@ output: html_document
 
 ```{r}
 #Libraries
-library(pwr)
+library(pwr)2
 ```
 
+
+
 ```{r}
-pwr.f2.test(u = 4, f2 = .20, sig.level = .05, power = .80)
+pwr.f2.test(u = 2, f2 = .56, sig.level = .05, power = .80)
 
 pwr.f2.test(u = 4, f2 = .15, sig.level = .05, power = .80)
 

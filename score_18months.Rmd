@@ -3,10 +3,8 @@ title: "Score 18-month questionnaires"
 output: html_notebook
 ---
 
-First run script "demographics.rmd"
-
 ```{r}
-#Libraries
+# Libraries
 library(tidyverse)
 library(lubridate)
 library(dplyr)
@@ -16,11 +14,17 @@ library(psych)
 #install.packages("GPArotation")
 library(GPArotation)
 
-#Parameters
-#q_18month_file <- "~/Desktop/BABIES/r01_winter_2019/data/questionnaires_18mo_20181204.csv"
-q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_cs_datecleaned_20190510.csv"
-q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_long_datecleaned_20190510.csv"
-demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190510.csv"
+# Files
+
+## Fran file paths
+#q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_cs_datecleaned_20190510.csv"
+#q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_long_datecleaned_20190510.csv"
+#demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190510.csv"
+
+## Lucy file paths
+q_18month_cs_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/qs_18mo_cs_datecleaned_20190510.csv"
+q_18month_long_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/qs_18mo_long_datecleaned_20190510.csv"
+demographics_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/demographics_20190510.csv"
 ```
 
 **Read in data**
@@ -38,16 +42,14 @@ q_18month <-
   ) %>% 
   left_join(
     read_csv(demographics_file) %>% 
-    #demo %>% 
       select(ID, male, baby_dob),
     by = "ID"
-  ) %>% 
-  unique() #why were longitudinal ids duplicated?
+  )
 ```
 
 # Score ITSEA
 
-##compute number of non-missing items for each subscale
+## Compute number of non-missing items for each subscale
 ```{r}
 q_18month_scored <-
   q_18month %>% 
@@ -181,6 +183,7 @@ q_18month_scored <-
 ```{r}
 q_18month_scored <-
   q_18month_scored %>% 
+  #reverse code items
   mutate_at(
     vars(
       itsea_b43, itsea_b65
@@ -361,29 +364,13 @@ q_18month_scored <-
   ) %>% 
   ungroup()
 ```
-#Calculate symptom and competence factor scores
-```{r}
-#psychopathology = sum(itsea_intern, extern, negemo)
-#competence = sum(compliance?, attention?, motivation?, play, empath, social)
 
+# Calculate symptom and competence scores
+```{r}
 q_18month_scored <-
   q_18month_scored %>%
   group_by(ID) %>% 
   mutate(
-    itsea_symptoms_mean = mean(
-      c(
-        itsea_intern,
-        itsea_extern,
-        itsea_negemo
-        ), na.rm = TRUE
-      ),
-    itsea_competence_mean = mean(
-      c(
-        itsea_play,
-        itsea_empath,
-        itsea_social
-      ), na.rm = TRUE
-    ),
     itsea_symptoms = sum(
       c(
         itsea_intern,
@@ -400,12 +387,9 @@ q_18month_scored <-
     )
   ) %>% 
   ungroup() 
-
-     
-glimpse(q_18month_scored)
 ```
 
-## calculate cut scores
+## Calculate clinical cut scores
 ```{r}
 q_18month_scored <-
   q_18month_scored %>% 
@@ -553,7 +537,7 @@ q_18month_scored %>%
   mutate(prop = n / sum(n))
 ```
 
-#visualizing subscale scores
+# Visualizing subscale scores
 ```{r}
 q_18month_scored %>% 
   select(itsea_activity:itsea_social) %>% 
@@ -570,9 +554,9 @@ q_18month_scored %>%
   theme_minimal() +
   facet_wrap(.~itsea_subscale)
 
-
 ```
-#visualizing ecsa scores
+
+# Visualizing ecsa scores
 ```{r}
 q_18month_scored %>% 
   ggplot(aes(ecsa_total)) +
@@ -625,8 +609,8 @@ itsea_fa3$Vaccounted
 ```
 Retaining 2 factors given eigen value given third factor explained small amount of variance and eigen value < 1. 
 
-Factor 1 explains 24% of the variance and is basically "symptoms" or "bad stuff".
-Factor 2 explains 20% of the variance and is basically "competence" or "good stuff".
+Factor 1 explains 24% of the variance and is basically "symptoms."
+Factor 2 explains 20% of the variance and is basically "competence."
 
 ## Extract factor scores
 ```{r}
@@ -667,9 +651,13 @@ q18month_symp <-
   q_18month_scored %>% 
   select(
     ID, 
+    survey_date,
+    male,
     itsea_activity:itsea_intern,
     itsea_concern,
-    ecsa_total
+    ecsa_total,
+    itsea_competence,
+    itsea_symptoms
   ) %>% 
   left_join(
     itsea_fascores %>% 
@@ -681,19 +669,21 @@ q18month_symp <-
     by = "ID"
   )
 
+glimpse(q18month_symp)
 ```
-#distributions of itsea scores 
-```{r}
-qplot(lena_18mo_sym_df$itsea_competence, 
-      geom = "histogram",
-      binwidth = .05)
 
-qplot(lena_18mo_sym_df$itsea_symptoms, 
-      geom = "histogram",
-      binwidth = .05)
+# Distributions of itsea scores 
+
+```{r}
+identify_outliers_hist(x = itsea_competence, data = q18month_symp)
+identify_outliers_hist(x = itsea_symptoms, data = q18month_symp)
+identify_outliers_hist(x = itsea_f2_competence, data = q18month_symp)
+identify_outliers_hist(x = itsea_f1_symptoms, data = q18month_symp)
 ```
+
 #Score the ASQ
 ```{r}
+
 #but higher score means knows less?
 #yes = 1, sometimes = 2, not yet = 3
 q_18month_scored$asq_c1r = dplyr::recode(q_18month_scored$asq_c1, "1"=10, "2"=5, "3"=0)
@@ -707,14 +697,14 @@ q_18month_scored$asq_comm <- rowMeans(subset(q_18month_scored, select = c(asq_c1
 
 
 ```
-#Score the MB CDI
-```{r}
-#1 sum score for expressive lang (mbcdi_1__2), another for receptive lang (mbcdi_1__1)
-#100 items + 1 "combining words" item
-#mbcdi_1__2 = 1 --> +1 for expressive & receptive
-#mbcdi_1__1 = 1 --> +1 for receptive
-#if 
 
+# Score the MB CDI
+1 sum score for expressive lang (mbcdi_1__2), another for receptive lang (mbcdi_1__1)
+100 items + 1 "combining words" item
+mbcdi_1__2 = 1 --> +1 for expressive & receptive
+mbcdi_1__1 = 1 --> +1 for receptive
+
+```{r}
 mbcdi_express_vars <- 
   q_18month_scored %>% 
   select(contains("__2")) %>% 
@@ -724,9 +714,9 @@ mbcdi_recept_vars <-
   q_18month_scored %>% 
   select(contains("__1")) %>% 
   names()
-
 ```
-##deal with cases where ps endorse both "understands" and "understands and says"
+
+## Deal with cases where ps endorse both "understands" and "understands and says"
 ```{r}
 #base r method to do this: 
 q_18month_scored <- data.frame(q_18month_scored)
@@ -769,40 +759,27 @@ q_18month_scored <-
 ```
 
 ##Select data for lena_18mo_symptoms project
+
 ```{r}
 q18month_symp <-
   q18month_symp %>% 
   left_join(
-    q_18month_scored %>% 
+    q_18month %>% 
       select(
         ID,
-        survey_date,
-        itsea_symptoms_mean,
-        itsea_symptoms,
-        itsea_competence_mean,
-        itsea_competence,
-        male
+        baby_dob
       ), 
-    by = "ID") %>% 
-    left_join(
-      q_18month %>% 
-        select(
-          ID,
-          baby_dob
-        ), by = "ID"
-    ) 
-
-q18month_symp <-
-  q18month_symp %>% 
+    by = "ID"
+  ) %>% 
   mutate(
     survey_date = parse_date_time(survey_date, orders = c("ymd", "mdy")),
     baby_age_18month = (baby_dob %--% survey_date) / months(1),
     baby_age_18month_int = as.integer(baby_age_18month)
-  ) %>% 
-  distinct()
+  ) 
 
-write_csv(q18month_symp, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190510.csv")
+write_csv(q18month_symp, "~/Desktop/BABIES/lena_symptoms/fran_box_data/q_18month_scores_20190519.csv")
 ```
+
 ##Select scores for all measures
 ```{r}
 q18month_demo <-
