@@ -22,26 +22,26 @@ library(gvlma)
 # Files 
 
 ## Fran file paths
-#crisys_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190430.csv"
-#q_18mo_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190510.csv"
-#q_18mo_ages_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_ages.csv"
-#demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190510.csv"
-#lena_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190510.csv"
-#lena_follow_and_data_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190510.csv"
-#baby_raceth_file <- "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv"
-#ibq_file <- "~/Desktop/lena_18mo_symptoms/Data/ibq_scored_20190510.csv"
-#lscr_file <- "~/Desktop/lena_18mo_symptoms/Data/lscr_merged_scored_20190412.csv"
+crisys_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190430.csv"
+q_18mo_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190510.csv"
+q_18mo_ages_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_ages.csv"
+demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190510.csv"
+lena_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190510.csv"
+lena_followup_and_data_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190510.csv"
+baby_raceth_file <- "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv"
+ibq_file <- "~/Desktop/lena_18mo_symptoms/Data/ibq_scored_20190510.csv"
+lscr_file <- "~/Desktop/lena_18mo_symptoms/Data/lscr_merged_scored_20190412.csv"
 
 ## Lucy file paths
-crisys_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/crisys_6mo_20190430.csv"
-q_18mo_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/q_18month_scores_20190519.csv"
-q_18mo_ages_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/q_18month_ages.csv"
-demographics_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/demographics_20190510.csv"
-lena_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_cleaned_day1_20190510.csv"
-lena_followup_and_data_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_and_data_20190510.csv"
-baby_raceth_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/baby_race_ethnicity.csv"
-ibq_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/ibq_scored_20190510.csv"
-lscr_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lscr_merged_scored_20190412.csv"
+# crisys_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/crisys_6mo_20190430.csv"
+# q_18mo_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/q_18month_scores_20190519.csv"
+# q_18mo_ages_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/q_18month_ages.csv"
+# demographics_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/demographics_20190510.csv"
+# lena_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_cleaned_day1_20190510.csv"
+# lena_followup_and_data_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_and_data_20190510.csv"
+# baby_raceth_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/baby_race_ethnicity.csv"
+# ibq_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/ibq_scored_20190510.csv"
+# lscr_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lscr_merged_scored_20190412.csv"
 
 # Functions
 source("identify_outliers_histogram.R")
@@ -107,7 +107,7 @@ lena_18mo_sym_df <-
     day = as.factor(day),
     day_type = as.factor(day_type),
     male = as.factor(male)
-  )
+  ) 
 ```
 # Descriptive statistics 
 
@@ -315,6 +315,26 @@ lena_18mo_sym_df %>%
     ), 
     na.rm = TRUE
   )
+
+#calculate concern scores for ITSEA
+itsea_concern <-
+  lena_18mo_sym_day1 %>% 
+  left_join(
+    read_csv(q_18mo_file) %>% 
+      select(
+        ID,
+        itsea_symptoms,
+        itsea_competence,
+        itsea_activity,
+        itsea_agress,
+        itsea_depp,
+        itsea_gad,
+        itsea_negemo
+      ) 
+    ) %>% 
+      filter(
+        !is.na(itsea_symptoms)
+      )
 ```
 
 ## Correlation tables
@@ -927,6 +947,7 @@ lena_18mo_sym_day1 %>%
 # save dataframe used for analyses 
 ```{r}
 #write_csv(lena_18mo_sym_df, "~/Desktop/lena_18mo_symptoms/data_for_analyses_20190519.csv")
+write_csv(lena_18mo_sym_day1, "~/Desktop/lena_18mo_symptoms/Data/data_for_analyses_20190519.csv")
 ```
 ```
 

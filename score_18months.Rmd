@@ -450,6 +450,46 @@ q_18month_scored <-
     )
   ) %>% 
   ungroup()
+
+#calculate concern scores for lena_18mo_symptoms
+
+itsea_concern <-
+  itsea_concern %>% 
+  group_by(ID) %>% 
+  mutate(
+    activity_concern = case_when(
+      male == 1 & itsea_activity >= 1.42 ~ "concern",
+      male == 0 & itsea_activity >= 1.28 ~ "concern",
+      TRUE ~ "none"
+    ),
+    agress_concern = case_when(
+      male == 1 & itsea_agress >= .87 ~ "concern",
+      male == 0 & itsea_agress >= .81 ~ "concern",
+      TRUE ~ "none"
+    ),
+    depp_concern = case_when(
+      male == 1 & itsea_depp >= .36 ~ "concern",
+      male == 0 & itsea_depp >= .34 ~ "concern",
+      TRUE ~ "none"
+    ),
+    gad_concern = case_when(
+      male == 1 & itsea_gad >= .55 ~ "concern",
+      male == 0 & itsea_gad >= .44 ~ "concern",
+      TRUE ~ "none"
+    ),
+    negemo_concern = case_when(
+      male == 1 & itsea_negemo >= .91 ~ "concern",
+      male == 0 & itsea_negemo >= 1.01 ~ "concern",
+      TRUE ~ "none"
+    ),
+    itsea_concern_ied = if_else(
+      activity_concern == "concern" | agress_concern == "concern" |
+        depp_concern == "concern" | gad_concern == "concern" |
+        negemo_concern == "concern",
+      "concern", "none"
+    )
+  ) %>% 
+  ungroup()
 ```
 
 ##Score the ECSA**
@@ -502,7 +542,7 @@ q_18month_scored <-
   ) %>% 
   ungroup()
 ```
-
+#Calculate ITSEA concern counts
 ```{r}
 q_18month_scored %>% 
   count(activity_concern)
@@ -533,6 +573,26 @@ q_18month_scored %>%
   mutate(prop = n / sum(n))
 
 q_18month_scored %>% 
+  count(itsea_concern_ied) %>% 
+  mutate(prop = n / sum(n))
+
+#calculate concern counts for lena_18mo_sym 
+itsea_concern %>% 
+  count(activity_concern)
+
+itsea_concern %>% 
+  count(agress_concern)
+
+itsea_concern %>% 
+  count(depp_concern)
+
+itsea_concern %>% 
+  count(gad_concern)
+
+itsea_concern %>% 
+  count(negemo_concern)
+
+itsea_concern %>% 
   count(itsea_concern_ied) %>% 
   mutate(prop = n / sum(n))
 ```
