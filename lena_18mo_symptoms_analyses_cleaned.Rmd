@@ -142,15 +142,21 @@ Income:
 
 ## Demographics
 ```{r}
+#get df of only participants included in analyses
+lena_18mo_sym_complete <-
+  lena_18mo_sym_day1 %>% 
+  filter(!is.na(crisys_total_6mo) & !is.na(itsea_symptoms))
+
 #means and sds of continuous demographic variables
-lena_18mo_sym_df %>%
-  group_by(day_type) %>% 
+lena_18mo_sym_complete %>%
+  #group_by(day_type) %>% 
   summarize_at(
     vars(
       baby_age_18month,
       baby_age_lena,
       duration,
-      mom_age_6mo_visit
+      mom_age_6mo_visit,
+      percent_mother
     ), 
     list(~mean, ~sd, ~min, ~max),
     na.rm = TRUE)
@@ -158,52 +164,53 @@ lena_18mo_sym_df %>%
 #counts and percentages for categorical variables (education, ethnicity, race, income)
 
 #income
-lena_18mo_sym_df %>% 
+lena_18mo_sym_complete %>% 
   distinct(ID, annual_income) %>% 
   count(annual_income) %>% 
   mutate(per = n / sum(n)) %>% 
   arrange(desc(annual_income))
 
-lena_18mo_sym_df %>% 
+lena_18mo_sym_complete %>% 
   distinct(ID, income_needs) %>% 
   count(income_needs < 1) %>% 
   mutate(per = n / sum(n))
 
 #mom and child ethnicity
-lena_18mo_sym_df %>% 
+lena_18mo_sym_complete %>% 
   distinct(ID, mom_ethnicity) %>% 
   count(mom_ethnicity) %>% 
   mutate(per = n / sum(n))
 
-lena_18mo_sym_df %>% 
+lena_18mo_sym_complete %>% 
   distinct(ID, child_ethnicity) %>%
   count(child_ethnicity) %>% 
   mutate(per = n / sum(n))
 
 #mom and child race
-lena_18mo_sym_df %>% 
+lena_18mo_sym_complete %>% 
   distinct(ID, mom_race) %>%
   count(mom_race) %>% 
   mutate(per = n / sum(n)) %>% 
   arrange(desc(per))
 
-lena_18mo_sym_df %>% 
+lena_18mo_sym_complete %>% 
   distinct(ID, child_race) %>%
   count(child_race) %>% 
   mutate(per = n / sum(n)) %>% 
   arrange(desc(per))
 
 #mom education
-lena_18mo_sym_df %>% 
+lena_18mo_sym_complete %>% 
   distinct(ID, education) %>%
   count(education) %>% 
   mutate(per = n / sum(n)) %>% 
   arrange(desc(per))
 ```
 
-## Distributions and identification out outliers key variables
+## Distributions and identification of outliers key variables
 ```{r}
-lena_18mo_sym_df %>% 
+
+lena_18mo_sym_complete %>% 
   count(day_type)
 
 lena_18mo_sym_df %>% 
@@ -292,8 +299,8 @@ lena_18mo_sym_df <-
 
 ## Descriptives for key variables of interest
 ```{r}
-lena_18mo_sym_df %>% 
-  group_by(day) %>% 
+lena_18mo_sym_complete %>% 
+  #group_by(day) %>% 
   summarise_at(
     vars(
       itsea_competence, 
@@ -343,26 +350,19 @@ correlations_day1 <-
   lena_18mo_sym_df %>% 
   filter(day == 1) %>% 
   select(
-    itsea_symptoms,
-    itsea_competence,
-    baby_age_18month,
-    baby_age_lena,
-    mom_age_6mo_visit,
-    income_needs,
-    crisys_neg_total_6mo_win,
-    duration,
-    awc_daily_rate_win,
-    ctc_daily_rate_win,
-    cvc_daily_rate_win,
-    awc_prop,
-    ctc_prop,
-    cvc_prop,
-    #num_stress_total,
-    #num_stress_preg,
-    #max_sev,
-    #sum_sev,
-    SUR,
-    NEG
+    symptoms = itsea_symptoms,
+    "child age at 18 month assessment" = baby_age_18month,
+    "child age at 6 month assessment" = baby_age_lena,
+    "mother age at 6 month assessment" = mom_age_6mo_visit,
+    "income to needs ratio" = income_needs,
+    "mother's recent stress and trauma" = crisys_neg_total_6mo_win,
+    "LENA recording duration" = duration,
+    "AW quantity" = awc_daily_rate_win,
+    "CT quantity" = ctc_daily_rate_win,
+    "AW consistency" = awc_prop,
+    "CT consistency" = ctc_prop,
+    "IBQ Surgency Score" = SUR,
+    "IBQ Negative Affectivity Score" = NEG
   ) 
 
 correlations_day1 %>% 
@@ -375,26 +375,19 @@ correlations_day2 <-
   lena_18mo_sym_df %>% 
   filter(day == 2) %>% 
   select(
-    itsea_symptoms,
-    itsea_competence,
-    baby_age_18month,
-    baby_age_lena,
-    mom_age_6mo_visit,
-    income_needs,
-    crisys_neg_total_6mo_win,
-    duration,
-    awc_daily_rate_win,
-    ctc_daily_rate_win,
-    cvc_daily_rate_win,
-    awc_prop,
-    ctc_prop,
-    cvc_prop,
-    #num_stress_total,
-    #num_stress_preg,
-    #max_sev,
-    #sum_sev,
-    SUR,
-    NEG
+   symptoms = itsea_symptoms,
+    "child age at 18 month assessment" = baby_age_18month,
+    "child age at 6 month assessment" = baby_age_lena,
+    "mother age at 6 month assessment" = mom_age_6mo_visit,
+    "income to needs ratio" = income_needs,
+    "mother's recent stress and trauma" = crisys_neg_total_6mo_win,
+    "LENA recording duration" = duration,
+    "AW quantity" = awc_daily_rate_win,
+    "CT quantity" = ctc_daily_rate_win,
+    "AW consistency" = awc_prop,
+    "CT consistency" = ctc_prop,
+    "IBQ Surgency Score" = SUR,
+    "IBQ Negative Affectivity Score" = NEG
   ) 
 
 correlations_day2 %>% 
