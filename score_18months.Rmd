@@ -17,14 +17,14 @@ library(GPArotation)
 # Files
 
 ## Fran file paths
-#q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_cs_datecleaned_20190510.csv"
-#q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_long_datecleaned_20190510.csv"
-#demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190510.csv"
+q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/qs_18mo_cs_datecleaned_20190726.csv"
+q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/qs_18mo_long_datecleaned_20190726.csv"
+demographics_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/demographics_20190726.csv"
 
 ## Lucy file paths
-q_18month_cs_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/qs_18mo_cs_datecleaned_20190510.csv"
-q_18month_long_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/qs_18mo_long_datecleaned_20190510.csv"
-demographics_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/demographics_20190510.csv"
+# q_18month_cs_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/qs_18mo_cs_datecleaned_20190510.csv"
+# q_18month_long_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/qs_18mo_long_datecleaned_20190510.csv"
+# demographics_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/demographics_20190510.csv"
 ```
 
 **Read in data**
@@ -837,7 +837,9 @@ q18month_symp <-
     baby_age_18month_int = as.integer(baby_age_18month)
   ) 
 
-write_csv(q18month_symp, "~/Desktop/BABIES/lena_symptoms/fran_box_data/q_18month_scores_20190519.csv")
+# write_csv(q18month_symp, "~/Desktop/BABIES/lena_symptoms/fran_box_data/q_18month_scores_20190519.csv")
+
+write_csv(q18month_symp, "~/Desktop/lena_18mo_symptoms/Data_Final/q_18month_scores_20190726.csv")
 ```
 
 ##Select scores for all measures

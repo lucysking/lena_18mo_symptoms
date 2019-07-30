@@ -9,9 +9,9 @@ output: html_document
 ##Parameters
 library(tidyverse)
 
-visit_date_long_t1_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_preg_20190131.csv"
+visit_date_long_t1_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/demo_long_preg_20190131.csv"
 
-visit_date_long_t2_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_nb_20190510.csv"
+visit_date_long_t2_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/demo_long_nb_20190726.csv"
 ```
 
 ```{r}
@@ -23,7 +23,8 @@ t1t2dates <-
     date_preg = demograph_date_preg
   ) %>% 
   mutate(
-    ID = as.integer(ID)
+    ID = as.integer(ID),
+    date_preg = as.Date(date_preg, "%m/%d/%y")
     ) %>% 
   left_join(
     read_csv(visit_date_long_t2_file) %>% 
@@ -32,7 +33,8 @@ t1t2dates <-
         date_newborn = demograph_date_preg
       ) %>% 
       mutate(
-        ID = as.integer(ID)
+        ID = as.integer(ID), 
+        date_newborn = as.Date(date_newborn, "%m/%d/%y")
       )
   )
     
@@ -41,6 +43,6 @@ glimpse(t1t2dates)
 
 ```{r}
 ##write csv
-write_csv(t1t2dates, "~/Desktop/lena_18mo_symptoms/Data/long_t1t2_dates_20190510.csv")
+write_csv(t1t2dates, "~/Desktop/lena_18mo_symptoms/Data_Final/long_t1t2_dates_20190726.csv")
 ```
 

@@ -9,11 +9,11 @@ library(tidyverse)
 
 #Parameters
 #ibq_cs_file <- "~/Desktop/BABIES/asl_infant_affect/data/ibq_cs_20180912.csv" 
-ibq_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/ibq_cs_20190413.csv"
+ibq_cs_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/ibq_cs_20190413.csv"
 #cross-sectional data
 
 #ibq_lg_file <- "~/Desktop/BABIES//asl_infant_affect/data/ibq_long_20180912.csv" 
-ibq_lg_file <- "~/Desktop/lena_18mo_symptoms/Data/ibq_long_20190510.csv"
+ibq_lg_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/ibq_long_20190726.csv"
 #longitudinal data
 ```
 
@@ -29,7 +29,7 @@ ibq <-
       rename(ID = record_id) %>% 
       mutate(ID = as.integer(ID))
   ) %>% 
-  select(-redcap_event_name:-ibq_timestamp)
+  select(-redcap_event_name:-redcap_survey_identifier)
 ```
 
 ###Score the IBQ-R
@@ -127,7 +127,7 @@ ibq <-
 ```
 
 ```{r}
-write_csv(ibq, "~/Desktop/lena_18mo_symptoms/Data/ibq_scored_20190510.csv")
+write_csv(ibq, "~/Desktop/lena_18mo_symptoms/Data_Final/ibq_scored_20190726.csv")
 ```
 
 

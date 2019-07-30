@@ -14,18 +14,18 @@ library(hms)
 # Files
 
 ## Fran file paths
-#lena_5min_file_1 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_20181220_cleaned.csv"
-#lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data/LENAExport_5Minute_new_20190510.csv"
-#lena_5min_files <- "~/Desktop/lena_18mo_symptoms/Data/individual_5min_lsk_format_cleaned"
-#lena_followup_long_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_long_datecleaned_20190412.csv"
-#lena_followup_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_cs_datecleaned_20190216.csv"
+lena_5min_file_1 <- "~/Desktop/lena_18mo_symptoms/Data_Final/LENAExport_5Minute_20181220_cleaned.csv"
+lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data_Final/LENAExport_5Minute_new_20190726.csv"
+lena_5min_files <- "~/Desktop/lena_18mo_symptoms/Data_Final/individual_5min_lsk_format_cleaned"
+lena_followup_long_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/lena_followup_long_datecleaned_20190726.csv"
+lena_followup_cs_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/lena_followup_cs_datecleaned_20190216.csv"
 
 ## Lucy file
-lena_5min_file_1 <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/LENAExport_5Minute_20181220_cleaned.csv"
-lena_5min_file_2 <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/LENAExport_5Minute_new_20190510.csv"
-lena_5min_files <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/individual_5min_lsk_format_cleaned"
-lena_followup_long_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_long_datecleaned_20190412.csv"
-lena_followup_cs_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_cs_datecleaned_20190216.csv"
+# lena_5min_file_1 <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/LENAExport_5Minute_20181220_cleaned.csv"
+# lena_5min_file_2 <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/LENAExport_5Minute_new_20190510.csv"
+# lena_5min_files <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/individual_5min_lsk_format_cleaned"
+# lena_followup_long_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_long_datecleaned_20190412.csv"
+# lena_followup_cs_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_cs_datecleaned_20190216.csv"
 
 lena_5min_files_df <-
   tibble(
@@ -428,5 +428,6 @@ lena_followup_and_data <-
 
 #write_csv(lena_5min_cl_wf, "~/Desktop/BABIES/data/lena_data/lena_cleaned_wf_20190308.csv")
 #write_csv(lena_5min_cl_filtered, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190510.csv")
-write_csv(lena_followup_and_data, "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_and_data_20190510.csv")
+#write_csv(lena_followup_and_data, "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_and_data_20190510.csv")
+write_csv(lena_followup_and_data, "~/Desktop/lena_18mo_symptoms/Data_Final/lena_followup_and_data_20190726.csv")
 ```
