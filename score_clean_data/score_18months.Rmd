@@ -583,16 +583,8 @@ itsea_fascores <-
 ## Export data
 
 ```{r}
-q18month_symp <-
-  q18month_symp %>% 
-  left_join(
-    q_18month %>% 
-      select(
-        ID,
-        baby_dob
-      ), 
-    by = "ID"
-  ) %>% 
+q_18month_scored <-
+  q_18month_scored %>% 
   mutate(
     survey_date = parse_date_time(survey_date, orders = c("ymd", "mdy")),
     baby_age_18month = (baby_dob %--% survey_date) / months(1),
@@ -600,7 +592,7 @@ q18month_symp <-
   ) 
 
 
-write_csv(q18month_symp, "~/Desktop/lena_18mo_symptoms/Data_Final/q_18month_scores_20190726.csv")
+write_csv(q_18month_scored, "~/Desktop/lena_18mo_symptoms/Data_Final/q_18month_scores_20190726.csv")
 ```
 
 
