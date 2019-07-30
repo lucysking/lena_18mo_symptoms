@@ -450,98 +450,8 @@ q_18month_scored <-
     )
   ) %>% 
   ungroup()
-
-#calculate concern scores for lena_18mo_symptoms
-
-itsea_concern <-
-  itsea_concern %>% 
-  group_by(ID) %>% 
-  mutate(
-    activity_concern = case_when(
-      male == 1 & itsea_activity >= 1.42 ~ "concern",
-      male == 0 & itsea_activity >= 1.28 ~ "concern",
-      TRUE ~ "none"
-    ),
-    agress_concern = case_when(
-      male == 1 & itsea_agress >= .87 ~ "concern",
-      male == 0 & itsea_agress >= .81 ~ "concern",
-      TRUE ~ "none"
-    ),
-    depp_concern = case_when(
-      male == 1 & itsea_depp >= .36 ~ "concern",
-      male == 0 & itsea_depp >= .34 ~ "concern",
-      TRUE ~ "none"
-    ),
-    gad_concern = case_when(
-      male == 1 & itsea_gad >= .55 ~ "concern",
-      male == 0 & itsea_gad >= .44 ~ "concern",
-      TRUE ~ "none"
-    ),
-    negemo_concern = case_when(
-      male == 1 & itsea_negemo >= .91 ~ "concern",
-      male == 0 & itsea_negemo >= 1.01 ~ "concern",
-      TRUE ~ "none"
-    ),
-    itsea_concern_ied = if_else(
-      activity_concern == "concern" | agress_concern == "concern" |
-        depp_concern == "concern" | gad_concern == "concern" |
-        negemo_concern == "concern",
-      "concern", "none"
-    )
-  ) %>% 
-  ungroup()
 ```
 
-##Score the ECSA**
-```{r}
-q_18month_scored <-
-  q_18month_scored %>% 
-  group_by(ID) %>% 
-  mutate(
-    ecsa_total = mean(
-      c(
-        ecsa_1, 
-        ecsa_2, 
-        ecsa_3, 
-        ecsa_4, 
-        ecsa_5, 
-        ecsa_6, 
-        ecsa_7, 
-        ecsa_8, 
-        ecsa_9, 
-        ecsa_10, 
-        ecsa_11, 
-        ecsa_12, 
-        ecsa_13, 
-        ecsa_14, 
-        ecsa_15, 
-        ecsa_16, 
-        ecsa_17, 
-        ecsa_18, 
-        ecsa_19, 
-        ecsa_20, 
-        ecsa_21, 
-        ecsa_22, 
-        ecsa_23, 
-        ecsa_24, 
-        ecsa_25, 
-        ecsa_26, 
-        ecsa_27, 
-        ecsa_28, 
-        ecsa_29, 
-        ecsa_30, 
-        ecsa_31, 
-        ecsa_32, 
-        ecsa_33, 
-        ecsa_34, 
-        ecsa_35, 
-        ecsa_36
-      ),
-      na.rm = TRUE
-    ) * 36
-  ) %>% 
-  ungroup()
-```
 #Calculate ITSEA concern counts
 ```{r}
 q_18month_scored %>% 
@@ -575,26 +485,6 @@ q_18month_scored %>%
 q_18month_scored %>% 
   count(itsea_concern_ied) %>% 
   mutate(prop = n / sum(n))
-
-#calculate concern counts for lena_18mo_sym 
-itsea_concern %>% 
-  count(activity_concern)
-
-itsea_concern %>% 
-  count(agress_concern)
-
-itsea_concern %>% 
-  count(depp_concern)
-
-itsea_concern %>% 
-  count(gad_concern)
-
-itsea_concern %>% 
-  count(negemo_concern)
-
-itsea_concern %>% 
-  count(itsea_concern_ied) %>% 
-  mutate(prop = n / sum(n))
 ```
 
 # Visualizing subscale scores
@@ -614,22 +504,6 @@ q_18month_scored %>%
   theme_minimal() +
   facet_wrap(.~itsea_subscale)
 
-```
-
-# Visualizing ecsa scores
-```{r}
-q_18month_scored %>% 
-  ggplot(aes(ecsa_total)) +
-  geom_histogram(bins = 20) +
-  geom_vline(xintercept = 18, color = "red") +
-  scale_y_continuous(breaks = seq.int(0, 10, 1)) +
-  theme_minimal()
-
-q_18month_scored %>% 
-  count(ecsa_total >= 18) %>% 
-  mutate(
-    per = n / sum(n)
-  )
 ```
 
 # ITSEA EFA
@@ -706,119 +580,7 @@ itsea_fascores <-
   )
 ```
 
-```{r}
-q18month_symp <-
-  q_18month_scored %>% 
-  select(
-    ID, 
-    survey_date,
-    male,
-    itsea_activity:itsea_intern,
-    itsea_concern,
-    ecsa_total,
-    itsea_competence,
-    itsea_symptoms
-  ) %>% 
-  left_join(
-    itsea_fascores %>% 
-      select(
-        ID,
-        itsea_f1_symptoms,
-        itsea_f2_competence
-      ),
-    by = "ID"
-  )
-
-glimpse(q18month_symp)
-```
-
-# Distributions of itsea scores 
-
-```{r}
-identify_outliers_hist(x = itsea_competence, data = q18month_symp)
-identify_outliers_hist(x = itsea_symptoms, data = q18month_symp)
-identify_outliers_hist(x = itsea_f2_competence, data = q18month_symp)
-identify_outliers_hist(x = itsea_f1_symptoms, data = q18month_symp)
-```
-
-#Score the ASQ
-```{r}
-
-#but higher score means knows less?
-#yes = 1, sometimes = 2, not yet = 3
-q_18month_scored$asq_c1r = dplyr::recode(q_18month_scored$asq_c1, "1"=10, "2"=5, "3"=0)
-q_18month_scored$asq_c2r = dplyr::recode(q_18month_scored$asq_c2, "1"=10, "2"=5, "3"=0)
-q_18month_scored$asq_c3r = dplyr::recode(q_18month_scored$asq_c3, "1"=10, "2"=5, "3"=0)
-q_18month_scored$asq_c4r = dplyr::recode(q_18month_scored$asq_c4, "1"=10, "2"=5, "3"=0)
-q_18month_scored$asq_c5r = dplyr::recode(q_18month_scored$asq_c5, "1"=10, "2"=5, "3"=0)
-q_18month_scored$asq_c6r = dplyr::recode(q_18month_scored$asq_c6, "1"=10, "2"=5, "3"=0)
-
-q_18month_scored$asq_comm <- rowMeans(subset(q_18month_scored, select = c(asq_c1r, asq_c2r, asq_c3r, asq_c4r, asq_c5r, asq_c6r)), na.rm = T)*6
-
-
-```
-
-# Score the MB CDI
-1 sum score for expressive lang (mbcdi_1__2), another for receptive lang (mbcdi_1__1)
-100 items + 1 "combining words" item
-mbcdi_1__2 = 1 --> +1 for expressive & receptive
-mbcdi_1__1 = 1 --> +1 for receptive
-
-```{r}
-mbcdi_express_vars <- 
-  q_18month_scored %>% 
-  select(contains("__2")) %>% 
-  names()
-
-mbcdi_recept_vars <- 
-  q_18month_scored %>% 
-  select(contains("__1")) %>% 
-  names()
-```
-
-## Deal with cases where ps endorse both "understands" and "understands and says"
-```{r}
-#base r method to do this: 
-q_18month_scored <- data.frame(q_18month_scored)
-#list of variable names
-rv <- names(q_18month_scored)[grep("mbcdi_.+___1", names(q_18month_scored))]
-ev <- names(q_18month_scored)[grep("mbcdi_.+___2", names(q_18month_scored))]
-
-for(x in 1:100){
-  q_18month_scored[,c(paste(rv[x],"_ev",sep=''))] <-q_18month_scored[,c(rv[x])]
-  q_18month_scored[
-    q_18month_scored[,c(rv[x])] == 1 & q_18month_scored[,c(ev[x])] == 1,
-    c(paste(rv[x],"_ev",sep=''))] <- 0
-}
-
-#diagnostics/visualizing 
-# names(q_18month_scored)
-# cbind(q_18month_scored$mbcdi_1___1,q_18month_scored$mbcdi_1___2,q_18month_scored$mbcdi_1___1_ev)
-# 
-rv_only <- names(q_18month_scored)[grep("mbcdi_.+___1_ev", names(q_18month_scored))]
-
-mbcdi_express_vars[[1]]
-
-```
-#make final scores
-```{r}
-q_18month_scored$mbcdi_express_total <-
-  rowMeans(subset(q_18month_scored, select = c(mbcdi_express_vars)), na.rm = T)*100
-
-q_18month_scored$mbcdi_receptonly_total <-
-  rowMeans(subset(q_18month_scored, select = c(rv_only)), na.rm = T)*100
-
-q_18month_scored$mbcdi_101 = dplyr::recode(q_18month_scored$mbcdi_101, "1"=0, "2"=1, "3"=2)
-
-q_18month_scored <-
-  q_18month_scored %>% 
-  mutate(
-    mbcdi_recept_total = mbcdi_express_total + mbcdi_receptonly_total,
-    mbcdi_combine = mbcdi_101
-  ) 
-```
-
-##Select data for lena_18mo_symptoms project
+## Export data
 
 ```{r}
 q18month_symp <-
@@ -837,53 +599,8 @@ q18month_symp <-
     baby_age_18month_int = as.integer(baby_age_18month)
   ) 
 
-# write_csv(q18month_symp, "~/Desktop/BABIES/lena_symptoms/fran_box_data/q_18month_scores_20190519.csv")
 
 write_csv(q18month_symp, "~/Desktop/lena_18mo_symptoms/Data_Final/q_18month_scores_20190726.csv")
 ```
-
-##Select scores for all measures
-```{r}
-q18month_demo <-
-  q18month_symp %>% 
-  select(
-    ID,
-    male,
-    baby_age_18month
-  )
-
-q18month_scores <-
-  q_18month_scored %>% 
-  select(
-    ID,
-    survey_date,
-    secondlang_18mo,
-    itsea_activity,
-    itsea_agress,
-    itsea_depp,
-    itsea_empath,
-    itsea_gad,
-    itsea_play,
-    itsea_negemo,
-    itsea_social,
-    itsea_extern,
-    itsea_intern,
-    ecsa_total,
-    asq_comm,
-    mbcdi_recept_total,
-    mbcdi_express_total, 
-    mbcdi_combine
-  ) %>% 
-  left_join(
-    q18month_demo,
-    by = "ID"
-    )
-
-write_csv(q18month_scores, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scored_20190510.csv") #this one just has the calculated scores
-
-write_csv(q_18month_scored, "~/Desktop/lena_18mo_symptoms/Data/q_18month_20190510.csv") #this one has all the original variables as well as the scores
-
-```
-#note: MBCDI norm scoring was done manually after this step, using the documents "mbcdi_vocab_production_male_norms.csv" and "mbcdi_vocab_production_female_norms.csv"
 
 

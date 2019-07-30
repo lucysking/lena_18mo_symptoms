@@ -129,7 +129,6 @@ crisys <-
 ```
 
 
-
 ```{r}
 crisys_wf <-
   crisys %>% 
@@ -174,139 +173,6 @@ crisys %>%
 
 ```
 
-# Item analysis
-
-## Prep data
-```{r}
-crisys %>% 
-  count(timepoint)
-
-#select only crisys variables
-crisys_6mo <-
-  crisys %>% 
-  filter(timepoint == "sixmonth") %>% 
-  mutate(
-    crisys_69 = if_else(is.na(crisys_69), 0, crisys_69),
-    crisys_70 = if_else(is.na(crisys_70), 0, crisys_70),
-    crisys_71 = if_else(is.na(crisys_71), 0, crisys_71),
-    crisys_72 = if_else(is.na(crisys_72), 0, crisys_72)
-  ) %>% 
-  select(crisys_1:crisys_72) 
-
-#drop variables that have only 0s
-crisys_6mo_fa <-
-  crisys_6mo %>% 
-  select_if(
-    ~sum(., na.rm = TRUE) > 0
-  )
-
-#identify variables dropped
-crisys_6mo_fa_vars <-
-  crisys_6mo_fa %>% 
-  names()
-
-crisys_6mo %>% 
-  select(-crisys_6mo_fa_vars) %>% 
-  names()
-
-##count non-missing values
-crisys_6mo_fa %>% 
-  summarize_all(
-    ~sum(., na.rm = TRUE)
-  )
-```
-
-## Correlation table
-```{r}
-crisys_6mo_n <-
-  crisys_6mo %>% 
-  n_distinct()
-
-crisys_6mo_fa %>% 
-  cor.plot() 
-
-crisys_6mo_cor <-
-  crisys_6mo_fa %>% 
-  cor(use = "complete.obs")
-```
-
-
-```{r}
-crisys_6mo_alpha <- 
-  crisys_6mo %>% 
-  alpha(check.keys = FALSE)
-
-alpha <- crisys_6mo_alpha$total$raw_alpha
-
-alpha_drop <- 
-  crisys_6mo_alpha$alpha.drop %>% 
-  rownames_to_column(var = "items") %>% 
-  mutate(
-    bad_item = if_else(
-      raw_alpha > alpha,
-      1, 0
-    )
-  )
-
-#bad items
-bad_items <- 
-  alpha_drop %>% 
-  filter(bad_item == 1) %>% 
-  select(items) %>% 
-  pull()
-
-#good items
-good_items <-
-  alpha_drop %>% 
-  filter(bad_item == 0) %>% 
-  select(items) %>% 
-  pull()
-```
-
-
-```{r}
-crisys_6mo_id <-
-  crisys %>% 
-  filter(timepoint == "sixmonth") %>% 
-  select(
-    ID,
-    crisys_6mo_good_items,
-    crisys_total,
-    crisys_win
-  ) %>% 
- mutate(
-    n_crisys_good = pmap_dbl(
-        select(., good_items),
-        function(...) sum(!is.na(c(...)), na.rm = TRUE)
-      ), 
-    crisys_total_good = as.double(
-      pmap_dbl(
-        select(., good_items),
-        function(...) mean(c(...), na.rm = TRUE)
-      ) * 49
-    ) 
-  ) 
-
-cor.test(crisys_6mo_id$crisys_total, crisys_6mo_id$crisys_total_good)
-```
-
-```{r}
-stress <-
-  crisys_6mo_id %>% 
-  left_join(lscr_T1lg_6mocs, by = "ID")
-
-stress %>% 
-  select(crisys_total, crisys_win, crisys_total_good, sum_sev_win, num_stress_total) %>% 
-  correlate(method = "pearson")
-
-stress %>% 
-  ggplot(aes(crisys_win, num_stress_total)) +
-  geom_point() +
-  geom_smooth(method = "lm")
-
-cor.test(stress$crisys_win, stress$sum_sev_win)
-```
-
 ```{r}
 crisys_6mo <-
   crisys_wf %>% 
@@ -330,9 +196,8 @@ crisys_6mo %>%
   ggplot(aes(crisys_total_6mo_win)) +
   geom_histogram(bins = 20)
 
-#write_csv(crisys_6mo, "~/Desktop/BABIES/lena_symptoms/fran_box_data/Data_20190413/crisys_6mo_20190430.csv")
-write_csv(crisys_6mo, "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190510.csv")
 
+#write_csv(crisys_6mo, "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190510.csv")
 ```
 
 ```

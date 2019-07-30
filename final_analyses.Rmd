@@ -1,13 +1,11 @@
 ---
 title: "Association of linguistic input at age 6 months and mental health symptoms at age 18 months"
 author: "Fran Querdasi & Lucy King"
-date: "3/2/2019"
 output: html_document
 ---
 
 # Environment
 ```{r setup, include=FALSE}
-
 # Libraries
 library(tidyverse)
 library(Hmisc)
@@ -22,26 +20,24 @@ library(gvlma)
 # Files 
 
 ## Fran file paths
-crisys_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190430.csv"
-q_18mo_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190510.csv"
-q_18mo_ages_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_ages.csv"
-demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190510.csv"
-lena_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190510.csv"
-lena_followup_and_data_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190510.csv"
-baby_raceth_file <- "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv"
-ibq_file <- "~/Desktop/lena_18mo_symptoms/Data/ibq_scored_20190510.csv"
-lscr_file <- "~/Desktop/lena_18mo_symptoms/Data/lscr_merged_scored_20190412.csv"
+#crisys_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190430.csv"
+#q_18mo_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190510.csv"
+#q_18mo_ages_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_ages.csv"
+#demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190510.csv"
+#lena_followup_and_data_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190510.csv"
+#baby_raceth_file <- "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv"
+#ibq_file <- "~/Desktop/lena_18mo_symptoms/Data/ibq_scored_20190510.csv"
+
 
 ## Lucy file paths
-# crisys_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/crisys_6mo_20190430.csv"
-# q_18mo_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/q_18month_scores_20190519.csv"
-# q_18mo_ages_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/q_18month_ages.csv"
-# demographics_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/demographics_20190510.csv"
-# lena_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_cleaned_day1_20190510.csv"
-# lena_followup_and_data_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_and_data_20190510.csv"
-# baby_raceth_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/baby_race_ethnicity.csv"
-# ibq_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/ibq_scored_20190510.csv"
-# lscr_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lscr_merged_scored_20190412.csv"
+crisys_file <- "~/Desktop/BABIES/lena_symptoms/data_final/crisys_6mo_20190726.csv"
+q_18mo_file <- "~/Desktop/BABIES/lena_symptoms/data_final/q_18month_scores_20190726.csv"
+q_18mo_ages_file <- "~/Desktop/BABIES/lena_symptoms/data_final/q_18month_ages.csv"
+demographics_file <- "~/Desktop/BABIES/lena_symptoms/data_final/demographics_20190726.csv"
+lena_followup_and_data_file <- "~/Desktop/BABIES/lena_symptoms/data_final/lena_followup_and_data_20190726.csv"
+baby_raceth_file <- "~/Desktop/BABIES/lena_symptoms/data_final/baby_race_ethnicity.csv"
+ibq_file <- "~/Desktop/BABIES/lena_symptoms/data_final/ibq_scored_20190726.csv"
+
 
 # Functions
 source("identify_outliers_histogram.R")
@@ -50,31 +46,19 @@ source("winsorize.R")
 
 # Read in and join data
 ```{r}
-lena_18mo_sym_df <-
+d0 <-
   read_csv(lena_followup_and_data_file) %>% 
   left_join(
     read_csv(q_18mo_file) %>% 
       select(
         ID, 
         itsea_symptoms,
-        itsea_competence,
         baby_age_18month
       ), 
     by = "ID"
   ) %>% 
   left_join(
     read_csv(crisys_file),
-    by = "ID"
-  ) %>% 
-  left_join(
-    read_csv(lscr_file) %>% 
-      select(
-        ID,
-        num_stress_total,
-        num_stress_preg,
-        sum_sev,
-        max_sev
-      ),
     by = "ID"
   ) %>% 
   left_join(
@@ -109,6 +93,15 @@ lena_18mo_sym_df <-
     male = as.factor(male)
   ) 
 ```
+
+## Select only Day 1 recordings
+```{r}
+d0_d1 <-
+  d0 %>% 
+  filter(day == 1)
+```
+
+
 # Descriptive statistics 
 
 Race:
@@ -140,27 +133,48 @@ Income:
 6, $90,001-150,000
 7, Greater than $150,000
 
-## Demographics
+## Missing data 
 ```{r}
-#get df of only participants included in analyses
-lena_18mo_sym_complete <-
-  lena_18mo_sym_day1 %>% 
-  filter(!is.na(crisys_total_6mo) & !is.na(itsea_symptoms))
+d0_d1 %>% 
+  count(!is.na(awc_daily_rate))
 
-#means and sds of continuous demographic variables
-lena_18mo_sym_complete %>%
-  #group_by(day_type) %>% 
+d0_d1 %>% 
+  count(!is.na(awc_daily_rate), !is.na(itsea_symptoms))
+
+d0_d1 <-
+  d0_d1 %>% 
+  filter(!is.na(itsea_symptoms))
+```
+
+## Descriptive statistics 
+
+```{r}
+d0_d1 %>% 
   summarize_at(
     vars(
       baby_age_18month,
       baby_age_lena,
+      NEG,
+      ctc_daily_rate,
+      ctc_prop,
+      awc_daily_rate,
+      awc_prop,
+      itsea_symptoms,
+      crisys_total_6mo,
       duration,
       mom_age_6mo_visit,
       percent_mother
     ), 
-    list(~mean, ~sd, ~min, ~max),
-    na.rm = TRUE)
+    list(~mean, ~sd, ~min, ~max), na.rm = TRUE)
 
+d0_d1$baby_age_18month
+
+d0_d1 %>% 
+  filter(baby_age_18month < 7)
+
+```
+
+```{r}
 #counts and percentages for categorical variables (education, ethnicity, race, income)
 
 #income
