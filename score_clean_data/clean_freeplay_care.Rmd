@@ -1,0 +1,287 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+##Libraries
+library(psych)
+library(tidyverse)
+library(corrplot)
+
+##Parameters
+free_play_file <- "~/Desktop/BABIES/lena_symptoms/data_final/PCIRS_FreePlay_MASTER.xlsx"
+```
+
+
+```{r}
+final_scores <- function(Second_Rater, var_r1, var_r2) {
+  
+  case_when(
+    (Second_Rater == "LK" | Second_Rater == "ER") ~ var_r2,
+    is.na(Second_Rater) ~ var_r1,
+    TRUE ~ var_r1
+  )
+}
+
+free_play <-
+  readxl::read_xlsx(free_play_file) %>% 
+  filter(Episode != 5) %>% 
+  mutate_at(
+    vars(Sens_R2:NegMood_R2, Sens_R1:NegMood_R1),
+    list(~as.double)
+  ) %>% 
+  rename_at(
+    vars(Sens_R2:NegMood_R2, Sens_R1:NegMood_R1),
+    list(~str_to_lower)
+  ) %>% 
+  mutate(
+    sens_fin = final_scores(Second_Rater, sens_r1, sens_r2),
+    intrus_fin = final_scores(Second_Rater, intrus_r1, intrus_r2),
+    posreg_fin = final_scores(Second_Rater, posreg_r1, posreg_r2),
+    stim_fin = final_scores(Second_Rater, stim_r1, stim_r2),
+    negreg_fin = final_scores(Second_Rater, negreg_r1, negreg_r2),
+    negmood_fin = final_scores(Second_Rater, negmood_r1, negmood_r2),
+    posmood_fin = final_scores(Second_Rater, posmood_r1, posmood_r2),
+    detach_fin = final_scores(Second_Rater, detach_r1, detach_r2)
+  ) 
+```
+
+# Calculate reliability 
+
+## number reliability coded
+```{r}
+free_play %>% 
+  filter(Episode == 1) %>% 
+  count(!is.na(sens_r1), !is.na(sens_r2))
+          
+```
+
+## At level of two-minute interval
+
+```{r}
+#sensitivity
+free_play %>%
+  select(
+    sens_r1,
+    sens_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+
+```{r}
+#intrusiveness
+free_play %>%
+  select(
+    intrus_r1,
+    intrus_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+```{r}
+#cognitive stimulation
+free_play %>%
+  select(
+    stim_r1,
+    stim_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+```{r}
+#positive regard
+free_play %>%
+  select(
+    posreg_r1,
+    posreg_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+```{r}
+#negative regard
+free_play %>%
+  select(
+    negreg_r1,
+    negreg_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+```{r}
+#positive mood
+free_play %>%
+  select(
+    posmood_r1,
+    posmood_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+```{r}
+#negative mood
+free_play %>%
+  select(
+    negmood_r1,
+    negmood_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+
+# at level of average across Free Play
+```{r}
+#wrangle data 
+free_play_means <- 
+  free_play %>% 
+  filter(!is.na(sens_r2)) %>% 
+  select(
+    ID,
+    Episode,
+    sens_r2:negmood_r2,
+    sens_r1:negmood_r1
+  ) %>% 
+  group_by(ID) %>% 
+  summarise_at(
+    vars(sens_r2:negmood_r1),
+    list(~mean), na.rm = TRUE
+  )
+```
+
+```{r}
+#sensitivity
+free_play_means %>%
+  select(
+    sens_r1,
+    sens_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+
+```{r}
+#intrusiveness
+free_play_means %>%
+  select(
+    intrus_r1,
+    intrus_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+```{r}
+#cognitive stimulation
+free_play_means %>%
+  select(
+    stim_r1,
+    stim_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+```{r}
+#positive regard
+free_play_means %>%
+  select(
+    posreg_r1,
+    posreg_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+```{r}
+#negative regard
+free_play_means %>%
+  select(
+    negreg_r1,
+    negreg_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+```{r}
+#positive mood
+free_play_means %>%
+  select(
+    posmood_r1,
+    posmood_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+```{r}
+#negative mood
+free_play_means %>%
+  select(
+    negmood_r1,
+    negmood_r2
+  ) %>% 
+  na.omit() %>% 
+  ICC()
+```
+
+# Select final data 
+```{r}
+fp_final <-
+  free_play %>% 
+  select(
+    ID,
+    episode = Episode,
+    sens_fin:detach_fin
+  ) 
+
+fp_final_wf <-
+  fp_final %>% 
+  group_by(ID) %>% 
+  summarise_at(
+    vars(sens_fin:detach_fin), 
+    list(~mean), na.rm = TRUE
+  )
+
+write_csv(fp_final_wf, "~/Desktop/BABIES/lena_symptoms/data_final/free_play_wf_20190830.csv")
+```
+
+# Internal consistency across the five 2-minute intervals
+
+```{r}
+fp_final_alpha <-
+  fp_final %>% 
+  gather(measure, value, sens_fin:detach_fin) %>% 
+  unite(new, measure, episode) %>% 
+  distinct(ID, new, value) %>% 
+  spread(new, value)
+```
+
+```{r }
+#sensitivity
+fp_final_alpha %>%
+  select(
+    sens_fin_1:sens_fin_4
+  ) %>% 
+  psych::alpha()
+```
+
+```{r }
+#intrusiveness
+fp_final_alpha %>%
+  select(
+    intrus_fin_1:intrus_fin_4
+  ) %>% 
+  psych::alpha()
+```
+

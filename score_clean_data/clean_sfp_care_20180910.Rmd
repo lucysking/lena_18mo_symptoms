@@ -1,0 +1,278 @@
+---
+title: "Clean and wrangle maternal caregiving code from SFP"
+output: html_notebook
+---
+
+```{r load data}
+#Libraries
+library(stats)
+library(psych)
+library(irr)
+library(tidyverse)
+library(corrr)
+
+#Parameters
+sfp_care_file <- "~/Desktop/BABIES/lena_symptoms/data_final/PCIRS_SFP_MASTER_20190802.xlsx"
+
+get_final_ratings <- function(r1_rating, r2_rating, r_consensus) {
+      final = if_else(is.na(r1_rating), r2_rating, r1_rating)
+      final = if_else(!is.na(r_consensus), r_consensus, final)
+}
+```
+
+##Read in data`
+
+```{r read in data}
+sfp_care <-
+  readxl::read_xlsx(
+    sfp_care_file, 
+    na = "-888"
+  ) %>% 
+  mutate_at(
+    vars(Sens_KH:PosReg_Con),
+    as.numeric
+  ) 
+```
+
+##Ns
+```{r}
+sfp_care %>% 
+  pull(ID) %>% 
+  n_distinct
+
+sfp_care %>% 
+  filter(!is.na(Sens_LK), !is.na(Sens_KH)) %>% 
+  pull(ID) %>% 
+  n_distinct
+```
+
+##Calculate reliability at level of 30-second interval
+```{r calculate reliability at level of 30 second interval}
+sfp_care %>%
+  select(
+    R1 = Sens_LK,
+    R2 = Sens_KH
+  ) %>%
+  filter(!is.na(R1), !is.na(R2)) %>%
+  ICC()
+  
+sfp_care %>%
+  select(
+    R1 = Intrus_LK,
+    R2 = Intrus_KH
+  ) %>%
+  filter(!is.na(R1), !is.na(R2)) %>%
+  ICC()
+
+sfp_care %>%
+  select(
+    R1 = Detach_LK,
+    R2 = Detach_KH
+  ) %>%
+  filter(!is.na(R1), !is.na(R2)) %>%
+  ICC()
+
+sfp_care %>%
+  select(
+    R1 = PosReg_LK,
+    R2 = PosReg_KH
+  ) %>%
+  filter(!is.na(R1), !is.na(R2)) %>%
+  ICC()
+```
+
+##Calculate reliability at level of episode
+```{r reliability at level of episode}
+sfp_care %>%
+  group_by(ID, Episode) %>%
+  summarise(
+    R1 = mean(Sens_LK, na.rm = TRUE),
+    R2 = mean(Sens_KH, na.rm = TRUE)
+  ) %>%
+  ungroup %>%
+  select(
+    R1,
+    R2
+  ) %>%
+  filter(!is.na(R1), !is.na(R2)) %>%
+  ICC()
+
+sfp_care %>%
+  group_by(ID, Episode) %>%
+  summarise(
+    R1 = mean(Intrus_LK, na.rm = TRUE),
+    R2 = mean(Intrus_KH, na.rm = TRUE)
+  ) %>%
+  ungroup %>%
+  select(
+    R1,
+    R2
+  ) %>%
+  filter(!is.na(R1), !is.na(R2)) %>%
+  ICC()
+
+
+sfp_care %>%
+  group_by(ID, Episode) %>%
+  summarise(
+    R1 = mean(PosReg_LK, na.rm = TRUE),
+    R2 = mean(PosReg_KH, na.rm = TRUE)
+  ) %>%
+  ungroup %>%
+  select(
+    R1,
+    R2
+  ) %>%
+  filter(!is.na(R1), !is.na(R2)) %>%
+  ICC()
+
+sfp_care %>%
+  group_by(ID, Episode) %>%
+  summarise(
+    R1 = mean(Detach_LK, na.rm = TRUE),
+    R2 = mean(Detach_KH, na.rm = TRUE)
+  ) %>%
+  ungroup %>%
+  select(
+    R1,
+    R2
+  ) %>%
+  filter(!is.na(R1), !is.na(R2)) %>%
+  ICC()
+
+```
+
+##Calculate reliability at level of means
+```{r reliability at means}
+sfp_care %>%
+  group_by(ID) %>%
+  summarise(
+    R1 = mean(Sens_LK, na.rm = TRUE),
+    R2 = mean(Sens_KH, na.rm = TRUE)
+  ) %>%
+  ungroup %>%
+  select(
+    R1,
+    R2
+  ) %>%
+  filter(!is.na(R1), !is.na(R2)) %>%
+  ICC()
+
+sfp_care %>%
+  group_by(ID) %>%
+  summarise(
+    R1 = mean(Intrus_LK, na.rm = TRUE),
+    R2 = mean(Intrus_KH, na.rm = TRUE)
+  ) %>%
+  ungroup %>%
+  select(
+    R1,
+    R2
+  ) %>%
+  filter(!is.na(R1), !is.na(R2)) %>%
+  ICC()
+
+
+sfp_care %>%
+  group_by(ID) %>%
+  summarise(
+    R1 = mean(PosReg_LK, na.rm = TRUE),
+    R2 = mean(PosReg_KH, na.rm = TRUE)
+  ) %>%
+  ungroup %>%
+  select(
+    R1,
+    R2
+  ) %>%
+  filter(!is.na(R1), !is.na(R2)) %>%
+  ICC()
+
+sfp_care %>%
+  group_by(ID) %>%
+  summarise(
+    R1 = mean(Detach_LK, na.rm = TRUE),
+    R2 = mean(Detach_KH, na.rm = TRUE)
+  ) %>%
+  ungroup %>%
+  select(
+    R1,
+    R2
+  ) %>%
+  filter(!is.na(R1), !is.na(R2)) %>%
+  ICC()
+
+```
+
+##Compute final ratings and means for each 
+```{r final ratings}
+#I am primary coder unless KH only coded the video
+sfp_care <- 
+  sfp_care %>%
+  mutate(
+    sens_fin = get_final_ratings(Sens_LK, Sens_KH, Sens_Con),
+    intrus_fin = get_final_ratings(Intrus_LK, Intrus_KH, Intrus_Con),
+    posreg_fin = get_final_ratings(PosReg_LK, PosReg_KH, PosReg_Con),
+    detach_fin = get_final_ratings(Detach_LK, Detach_KH, Detach_Con)
+  )
+```
+
+##Compute means within episodes
+```{r means within episodes}
+sfp_care <- 
+  sfp_care %>%
+  group_by(ID, Episode) %>%
+  summarise(
+    sens_M = mean(sens_fin, na.rm = TRUE),
+    intrus_M = mean(intrus_fin, na.rm = TRUE),
+    detach_M = mean(detach_fin, na.rm = TRUE),
+    posreg_M = mean(posreg_fin, na.rm = TRUE)
+  ) %>% 
+  ungroup()
+```
+
+##Convert data to wide format
+```{r covert to wide form}
+sfp_care_wf <-
+  sfp_care %>%
+  as.data.frame() %>%
+  reshape(idvar = "ID", timevar = "Episode", direction = "wide") %>%
+  group_by(ID) %>% 
+  mutate(
+    sens_M = mean(c(sens_M.P, sens_M.R1, sens_M.R2), na.rm = TRUE),
+    intrus_M = mean(c(intrus_M.P, intrus_M.R1, intrus_M.R2), na.rm = TRUE),
+    posreg_M = mean(c(posreg_M.P, posreg_M.R1, posreg_M.R2), na.rm = TRUE),
+    detach_M = mean(c(detach_M.P, detach_M.R1, detach_M.R2), na.rm = TRUE),
+    sens_R_M = mean(c(sens_M.R1, sens_M.R2), na.rm = TRUE),
+    intrus_R_M = mean(c(intrus_M.R1, intrus_M.R2), na.rm = TRUE),
+    posreg_R_M = mean(c(posreg_M.R1, posreg_M.R2), na.rm = TRUE),
+    detach_R_M = mean(c(detach_M.R1, detach_M.R2), na.rm = TRUE)
+  ) %>% 
+  ungroup()
+```
+
+```{r}
+sfp_care_wf %>% 
+  select(sens_M:detach_M) %>% 
+  correlate() %>% 
+  fashion()
+
+sfp_care_wf %>% 
+  select(sens_M:detach_M) %>% 
+  correlate() %>% 
+  focus(sens_M:detach_M, mirror = TRUE) %>% 
+  network_plot()
+
+sfp_care_wf %>%
+  select(sens_M.P:detach_M) %>% 
+  correlate() %>% 
+  rearrange(method = "MDS", absolute = FALSE) %>%
+  shave() %>% 
+  rplot()
+```
+
+```{r export data}
+#write.csv(sfp_care, "~/Desktop/BABIES/data/PCIRS_sfp_raw.csv")
+#write.csv(sfp_av, "~/Desktop/BABIES/data/PCIRS_sfp_lf.csv")
+write.csv(sfp_care_wf, "~/Desktop/BABIES/lena_symptoms/data_final/PCIRS_sfp_wf.csv")
+```
+

@@ -10,44 +10,24 @@ library(psych)
 library(corrr)
 
 #Paramaters
-#crisys_preg_file <- "~/Desktop/BABIES/lena_symptoms/data/crisys_preg_20190418.csv"
-crisys_preg_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_preg_20190202.csv"
+crisys_6mo_lg_file <- "~/Desktop/BABIES/lena_symptoms/data_final/crisys_6mo_long_20190801.csv" 
+crisys_6mo_cs_file <- "~/Desktop/BABIES/lena_symptoms/data_final/crysis_6mo_cs_20190801.csv" 
 
-#crisys_nb_cs_file <- "~/Desktop/BABIES/lena_symptoms/data/crisys_nb_20190418.csv"
-crisys_nb_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_nb_20190510.csv"
-
-#crisys_6mo_lg_file <- "~/Desktop/BABIES/lena_symptoms/data/crisys_6mo_long_20190418.csv" 
-crisys_6mo_lg_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_long_20190510.csv"
-
-#crisys_6mo_cs_file <- "~/Desktop/BABIES/lena_symptoms/data/crysis_6mo_cs_20190418.csv" 
-crisys_6mo_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_cs_20190202.csv"
 
 
 #Functions
-#source("~/Desktop/BABIES/lena_symptoms/lena_18mo_symptoms/winsorize.R")
-source("~/Desktop/lena_18mo_symptoms/winsorize.R")
+source("~/Desktop/BABIES/lena_symptoms/lena_18mo_symptoms/winsorize.R")
+
 
 ```
 
 # Score crisys based on all items
 ```{r}
 crisys <-
-  read_csv(crisys_preg_file) %>% 
+  read_csv(crisys_6mo_cs_file) %>% 
   rename(ID = record_id) %>% 
   mutate(ID = as.integer(ID)) %>% 
   select(-redcap_survey_identifier:-crisys_timestamp) %>% 
-  bind_rows(
-    read_csv(crisys_nb_cs_file) %>% 
-      rename(ID = record_id) %>% 
-      mutate(ID = as.integer(ID)) %>% 
-      select(-redcap_survey_identifier:-crisys_timestamp)
-  ) %>% 
-  bind_rows(
-    read_csv(crisys_6mo_cs_file) %>% 
-      rename(ID = record_id) %>% 
-      mutate(ID = as.integer(ID)) %>% 
-      select(-redcap_survey_identifier:-crisys_timestamp) 
-  ) %>% 
   bind_rows(
     read_csv(crisys_6mo_lg_file) %>% 
       rename(ID = record_id) %>% 
@@ -141,36 +121,12 @@ crisys_wf <-
 
 ```{r}
 crisys %>% 
-  ggplot(aes(timepoint, crisys_total)) +
-  geom_line(
-    aes(
-      timepoint, 
-      crisys_total, 
-      group = ID
-    ),
-    color = "blue",
-    alpha = 1/4
-  ) +
-  theme(
-    legend.position = "none"
-  )
-
-crisys %>% 
-  ggplot(aes(timepoint, crisys_total)) +
-  geom_boxplot()
-
-
-crisys %>% 
   ggplot(aes(crisys_total)) +
-  geom_histogram() +
-  facet_wrap(~timepoint)
+  geom_histogram() 
 
 crisys %>% 
   ggplot(aes(crisys_win)) +
-  geom_histogram() +
-  facet_wrap(~timepoint)
-
-
+  geom_histogram() 
 ```
 
 ```{r}
@@ -183,21 +139,9 @@ crisys_6mo <-
       crisys_total_6mo_win = sixmonth_crisys_win,
       crisys_neg_total_6mo_win = sixmonth_crisys_neg_win
     )
-  
-crisys_6mo %>% 
-  ggplot(aes(crisys_total_6mo)) +
-  geom_histogram(bins = 20)
-
-crisys_6mo <- 
-  winsorize(crisys_6mo, crisys_total_6mo) %>% 
-  rename(crisys_total_6mo_win = value)
-
-crisys_6mo %>% 
-  ggplot(aes(crisys_total_6mo_win)) +
-  geom_histogram(bins = 20)
 
 
-#write_csv(crisys_6mo, "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190510.csv")
+write_csv(crisys_6mo, "~/Desktop/BABIES/lena_symptoms/data_final/crisys_6mo_20190801.csv")
 ```
 
 ```

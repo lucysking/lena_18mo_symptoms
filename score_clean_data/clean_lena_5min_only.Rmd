@@ -10,22 +10,15 @@ output: html_notebook
 library(tidyverse)
 library(lubridate)
 library(hms)
+library(psych)
 
 # Files
 
-## Fran file paths
-lena_5min_file_1 <- "~/Desktop/lena_18mo_symptoms/Data_Final/LENAExport_5Minute_20181220_cleaned.csv"
-lena_5min_file_2 <- "~/Desktop/lena_18mo_symptoms/Data_Final/LENAExport_5Minute_new_20190726.csv"
-lena_5min_files <- "~/Desktop/lena_18mo_symptoms/Data_Final/individual_5min_lsk_format_cleaned"
-lena_followup_long_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/lena_followup_long_datecleaned_20190726.csv"
-lena_followup_cs_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/lena_followup_cs_datecleaned_20190216.csv"
-
-## Lucy file
-# lena_5min_file_1 <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/LENAExport_5Minute_20181220_cleaned.csv"
-# lena_5min_file_2 <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/LENAExport_5Minute_new_20190510.csv"
-# lena_5min_files <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/individual_5min_lsk_format_cleaned"
-# lena_followup_long_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_long_datecleaned_20190412.csv"
-# lena_followup_cs_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_cs_datecleaned_20190216.csv"
+lena_5min_file_1 <- "~/Desktop/BABIES/lena_symptoms/data_final/LENAExport_5Minute_20181220_cleaned.csv"
+lena_5min_file_2 <- "~/Desktop/BABIES/lena_symptoms/data_final/LENAExport_5Minute_new_20190726.csv"
+lena_5min_files <- "~/Desktop/BABIES/lena_symptoms/data_final/individual_5min_lsk_format_cleaned"
+lena_followup_long_file <- "~/Desktop/BABIES/lena_symptoms/data_final/lena_followup_long_datecleaned_20190726.csv"
+lena_followup_cs_file <- "~/Desktop/BABIES/lena_symptoms/data_final/lena_followup_cs_datecleaned_20190216.csv"
 
 lena_5min_files_df <-
   tibble(
@@ -43,7 +36,7 @@ lena_5min_files_df <-
   )
 ```
 
-# Read in and reformat 5 minute data
+# Read in and reformat 5 minute data from LENA SP 
 
 ```{r}
 lena_5min_sp <-
@@ -93,10 +86,17 @@ lena_5min_sp <-
     -CV_COUNT,
     -AWC_COUNT,
     -Duration_Secs
+  ) %>% 
+  mutate(
+    Timestamp = str_replace(Timestamp, " \\(America/Los_Angeles\\)", ""),
+    time_record = parse_date_time(Timestamp, "mdy HMS p!")
+  ) %>% 
+  select(
+    -Timestamp
   )
 ```
 
-## Read in 5-minute data from Pro license 2 (2018 file) and SP
+## Read in 5-minute LENA Pro data and combine with LENA SP data 
 
 ```{r warning=FALSE}
 lena_5min <-
@@ -116,18 +116,17 @@ lena_5min <-
     ID = Lastname,
     dob = Birthdate
   ) %>% 
+  mutate(
+    time_record = parse_date_time(Timestamp, "mdy HM")
+  ) %>% 
   bind_rows(
     lena_5min_sp
   ) %>% 
-  separate(Timestamp, into = c("date_record", "time_record"), sep = " ") %>% 
   mutate(
-    ID = as.numeric(ID),
-    dob = parse_date_time(dob, c("ymd", "mdy")),
-    date_record = parse_date_time(date_record, c("ymd", "mdy")),
-    age = (dob %--% date_record) / months(1)
+    ID = as.numeric(ID)
   ) %>% 
   select(
-    -dob
+    -Timestamp
   )
 ```
 
@@ -169,7 +168,6 @@ lena_5min2 <-
     ID2 = Lastname,
     dob = Birthdate
   ) %>% 
-  separate(Timestamp, into = c("date_record", "time_record"), sep = " ") %>% 
   mutate(
     ID = as.numeric(
       if_else(
@@ -177,16 +175,14 @@ lena_5min2 <-
         ID1, ID2
       )
     ),
-    dob = parse_date_time(dob, c("ymd", "mdy")),
-    date_record = parse_date_time(date_record, c("ymd", "mdy")),
-    age = (dob %--% date_record) / months(1)
+    time_record = parse_date_time(Timestamp, c("mdy HM", "ymd HM"))
   ) %>% 
   select(
     ID,
     everything(),
+    -Timestamp,
     -ID1,
-    -ID2,
-    -dob
+    -ID2
   )
 ```
 
@@ -195,7 +191,62 @@ lena_5min2 <-
 lena_5min <-
   lena_5min %>% 
   bind_rows(lena_5min2) %>% 
-  arrange(ID)
+  arrange(ID) %>% 
+  mutate(
+    dob = parse_date_time(dob, c("Ymd", "mdy")),
+    date_record = date(time_record),
+    age = (dob %--% date_record) / months(1)
+  )
+```
+
+## Calculate CTC based on time of day
+```{r}
+lena_time <- 
+  lena_5min %>% 
+  group_by(ID) %>% 
+  mutate(
+    time_hours = hour(time_record) + minute(time_record) / 60,
+    time_day = case_when(
+      time_hours >=5 & time_hours <= 10 ~ "AM",
+      time_hours >= 10 & time_hours <13 ~ "MID",
+      time_hours >= 13 & time_hours <17 ~ "AFT",
+      time_hours >= 17 & time_hours < 22 ~ "PM"
+    ), 
+    duration = as.numeric(
+      as.duration(hms(as.numeric(Duration))),
+      "hours"
+    )
+  ) 
+
+lena_time_day <- 
+  lena_time %>% 
+  group_by(ID, date_record, time_day, age) %>% 
+  summarise(
+    duration_time_day = sum(duration),
+    ctc_time_day = sum(CTC.Actual)
+  ) %>% 
+  filter(!is.na(time_day)) %>% 
+  group_by(ID) %>% 
+  mutate(
+    ctc_time_rate = ctc_time_day / duration_time_day
+  ) 
+
+lena_time %>% 
+  ggplot(aes(time_hours, CTC.Actual)) +
+  geom_jitter(alpha = 1/6, aes(color = time_day)) +
+  geom_smooth(color = "black") +
+  scale_x_continuous(breaks = seq.int(0, 24, 2)) +
+  scale_y_continuous(breaks = seq.int(0, 35, 5)) +
+  theme_lena +
+  theme(
+    legend.position = "none"
+  ) +
+  labs(
+    x = "Time of day\n(hours since midnight)",
+    y = "Conversational turn count"
+  )
+
+ggsave("~/Desktop/BABIES/lena_symptoms/manuscript/ctc_time.png")
 ```
 
 # Clean and wrangle 5-minute data 
@@ -231,7 +282,13 @@ lena_5min_cl <-
     awc_prop = (awc_depend_sum) / ((duration * 60) / 5), #proportion of 5 minute segments with AWC
     ctc_prop = (ctc_depend_sum) / ((duration * 60) / 5), #proportion of 5 minute segments with CTC 
     cvc_prop = (cvc_depend_sum) / ((duration * 60) / 5)
-  ) %>% 
+  ) 
+```
+
+```{r}
+lena_5min_cl <-
+  lena_time_day %>% 
+  left_join(lena_5min_cl, by = c("ID", "age", "date_record")) %>% 
   filter(
     (age >= 5 & age <= 8),
     duration >= 8
@@ -247,15 +304,12 @@ lena_5min_cl <-
 
 # Create wideform data frame with 1 row per ID
 ```{r}
-lena_5min_cl %>% 
-  count(day)
-
 lena_5min_day1_rename <-
   lena_5min_cl %>% 
   filter(day == 1) %>% 
   rename_at(
     vars(date_record:day_type),
-    funs(paste0(., "_D1"))
+    list(~paste0(., "_D1"))
   ) %>% 
   select(-day)
 
@@ -264,13 +318,14 @@ lena_5min_day2_rename <-
   filter(day == 2) %>% 
   rename_at(
     vars(date_record:day_type),
-    funs(paste0(., "_D2"))
+    list(~paste0(., "_D2"))
   ) %>% 
   select(-day)
 
 lena_5min_cl_wf <-
   lena_5min_day1_rename %>% 
   left_join(lena_5min_day2_rename, by = "ID") %>% 
+  distinct(ID, date_record_D1, ctc_time_rate_D1, .keep_all = TRUE) %>% 
   group_by(ID) %>% 
   mutate(
     ctc_max_D1D2 = max(ctc_max_D1, ctc_max_D2, na.rm = TRUE)
@@ -332,14 +387,7 @@ longitudinal:
 ```{r}
 lena_5min_cl_wf %>% 
   count(day_type_D1)
-
-lena_5min_cl_wf %>% 
-  count(day_type_D2)
-
-lena_5min_cl_wf %>% 
-  filter(day_type_D2 == "weekend" | day_type_D1 == "weekend")
 ```
-Conclusion: 54 with weekend recording, so need to covary for day type (can't just use weekend from everyone); also many more weekends in day 2 than day 1
 
 # Summarize proportion variables
 ```{r}
@@ -371,15 +419,13 @@ lena_followup <-
 #t-test weekday vs. weekend and percent of time spent w mom
 t.test(percent_mother ~ lena_weekend, data = lena_followup)
 ```
+
 #Filter data for use in lena_18mo_symptoms project analyses
-filtering criteria: Day 1, removing 110
 ```{r}
 #IDs to use day 2: 
-# day 2: 110 (put device in pocket rather than chest day 1), 106
+# day 1: 110 (put device in pocket rather than chest day 1), 106
 
-#110 day 2 isn't in dataset and 106 isn't in it at all, so taking day 1 from everyone:
-
-lena_5min_cl_filtered <-
+lena_5min_cl <-
   lena_5min_cl %>%
   filter(
     ID != 110
@@ -388,10 +434,8 @@ lena_5min_cl_filtered <-
 
 ### Merge relevant follow up qs data with cleaned & filtered lena data 
 ```{r}
-##add percent_mother variable to lena data to see if difference weekday vs. weekend within the subset of recordings we've filtered, joining on ID and day_type
-
-lena_5min_cl_filtered <-
-  lena_5min_cl_filtered %>% 
+lena_5min_cl <-
+  lena_5min_cl %>% 
   mutate(
     day_weekend_num = if_else(
       day_type == "weekend",
@@ -404,7 +448,7 @@ lena_5min_cl_filtered <-
   
 #merge data on lena recording date 
 lena_followup_and_data <- 
-  lena_5min_cl_filtered %>%  
+  lena_5min_cl %>%  
   mutate(
     date_record = parse_date_time(date_record, c("ymd", "mdy"))
   ) %>% 
@@ -415,19 +459,70 @@ lena_followup_and_data <-
         date_record = parse_date_time(date_record, c("ymd", "mdy"))
       ), 
     by = c("ID", "date_record")
-  ) 
+  ) %>% 
+  mutate(
+    day = if_else(
+      day < 5,
+      1, 2
+    )
+  )
+```
 
+## Filter to only day 1 day
+```{r}
+lena_d1 <- 
+  lena_followup_and_data %>% 
+  filter(day == 1) %>% 
+  # these IDs are missing a time segment on day 1 therefore 1 of the time segments on day 2 was counted
+  filter(
+    !(ID == 1033 & date_record == ymd("2018-03-27")) ,
+    !(ID == 1045 & date_record == ymd("2018-05-19")),
+    !(ID == 1029 & date_record == ymd("2018-05-12"))
+  )
+
+lena_time_wf <- 
+  lena_d1 %>%
+  select(
+    ID,
+    time_day,
+    ctc_time_rate
+  ) %>% 
+  arrange(ID, time_day) %>% 
+  group_by(ID) %>% 
+  mutate(
+    ctc_ssd = mssd(ctc_time_rate)
+  ) %>% 
+  spread(time_day, ctc_time_rate, sep = "_")
+
+lena_d1 <-
+  lena_d1 %>% 
+  distinct(ID, ctc_daily_rate, .keep_all = TRUE) %>% 
+  left_join(lena_time_wf, by = "ID") %>% 
+  select(-time_day)
+```
+
+## Clean LENA time data frame
+```{r}
+ids_dates <-
+  lena_d1 %>% 
+  select(
+    ID,
+    date_record
+  ) %>% 
+  mutate(
+    included = 1,
+    date_record = date(date_record)
+  )
+
+lena_time_cl <-
+  lena_time %>% 
+  left_join(ids_dates, by = c("ID", "date_record")) %>% 
+  filter(included == 1)
 ```
 
 ##Write file with relevant data 
 
 ```{r}
-#all data
-#write_csv(lena_5min_cl, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byday_20190413.csv")
-#write_csv(lena_5min_cl_wf, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_byID_20190202.csv")
-
-#write_csv(lena_5min_cl_wf, "~/Desktop/BABIES/data/lena_data/lena_cleaned_wf_20190308.csv")
-#write_csv(lena_5min_cl_filtered, "~/Desktop/lena_18mo_symptoms/Data/lena_cleaned_day1_20190510.csv")
-#write_csv(lena_followup_and_data, "~/Desktop/BABIES/lena_symptoms/fran_box_data/lena_followup_and_data_20190510.csv")
-write_csv(lena_followup_and_data, "~/Desktop/lena_18mo_symptoms/Data_Final/lena_followup_and_data_20190726.csv")
+write_csv(lena_d1, "~/Desktop/BABIES/lena_symptoms/data_final/lena_d1_20190904.csv")
+write_csv(lena_time_cl, "~/Desktop/BABIES/lena_symptoms/data_final/lena_d1_time_20190904.csv")
 ```

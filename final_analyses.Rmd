@@ -16,54 +16,59 @@ library(nlme)
 library(ggpubr)
 library(modelr)
 library(gvlma)
+library(sjstats)
+library(glmpath)
+library(pwr)
 
 # Files 
-
-## Fran file paths
-#crisys_file <- "~/Desktop/lena_18mo_symptoms/Data/crisys_6mo_20190430.csv"
-#q_18mo_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190510.csv"
-#q_18mo_ages_file <- "~/Desktop/lena_18mo_symptoms/Data/q_18month_ages.csv"
-#demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190510.csv"
-#lena_followup_and_data_file <- "~/Desktop/lena_18mo_symptoms/Data/lena_followup_and_data_20190510.csv"
-#baby_raceth_file <- "~/Desktop/lena_18mo_symptoms/Data/baby_race_ethnicity.csv"
-#ibq_file <- "~/Desktop/lena_18mo_symptoms/Data/ibq_scored_20190510.csv"
-
-
-## Lucy file paths
-crisys_file <- "~/Desktop/BABIES/lena_symptoms/data_final/crisys_6mo_20190726.csv"
+fp_intervention_id <- "~/Desktop/BABIES/lena_symptoms/data_final/ID_group_assignment.xlsx"
 q_18mo_file <- "~/Desktop/BABIES/lena_symptoms/data_final/q_18month_scores_20190726.csv"
 q_18mo_ages_file <- "~/Desktop/BABIES/lena_symptoms/data_final/q_18month_ages.csv"
 demographics_file <- "~/Desktop/BABIES/lena_symptoms/data_final/demographics_20190726.csv"
-lena_followup_and_data_file <- "~/Desktop/BABIES/lena_symptoms/data_final/lena_followup_and_data_20190726.csv"
+lena_file <- "~/Desktop/BABIES/lena_symptoms/data_final/lena_d1_20190904.csv"
+lena_time_file <- "~/Desktop/BABIES/lena_symptoms/data_final/lena_d1_time_20190904.csv"
 baby_raceth_file <- "~/Desktop/BABIES/lena_symptoms/data_final/baby_race_ethnicity.csv"
 ibq_file <- "~/Desktop/BABIES/lena_symptoms/data_final/ibq_scored_20190726.csv"
+sfp_care_file <- "~/Desktop/BABIES/lena_symptoms/data_final/PCIRS_sfp_wf.csv"
+fp_care_file <- "~/Desktop/BABIES/lena_symptoms/data_final/free_play_wf_20190830.csv"
 
 
 # Functions
 source("identify_outliers_histogram.R")
 source("winsorize.R")
+
+theme_lena <-
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(size = 18, hjust = .5),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 18), 
+    legend.text = element_text(size = 16),
+    legend.position = "bottom"
+  )
 ```
 
 # Read in and join data
 ```{r}
 d0 <-
-  read_csv(lena_followup_and_data_file) %>% 
+  read_csv(lena_file) %>% 
   left_join(
     read_csv(q_18mo_file) %>% 
-      select(
+      dplyr::select(
         ID, 
         itsea_symptoms,
+        itsea_intern,
+        itsea_extern,
+        itsea_concern_ied,
         baby_age_18month
       ), 
     by = "ID"
   ) %>% 
   left_join(
-    read_csv(crisys_file),
-    by = "ID"
-  ) %>% 
-  left_join(
     read_csv(demographics_file) %>% 
-      select(
+      dplyr::select(
         ID,
         education,
         annual_income,
@@ -80,29 +85,114 @@ d0 <-
   ) %>% 
   left_join(
     read_csv(ibq_file) %>% 
-      select(
+      dplyr::select(
         ID,
         SUR,
         NEG
       ),
     by = "ID"
   ) %>% 
+  left_join(
+    read_csv(sfp_care_file) %>% 
+      dplyr::select(
+        ID,
+        sens_sfp = sens_R_M
+      ),
+    by = "ID"
+  ) %>% 
+  left_join(
+    read_csv(fp_care_file) %>% 
+      dplyr::select(
+        ID,
+        posmood_fp = posmood_fin, 
+        negmood_fp = negmood_fin,
+        stim_fp = stim_fin, 
+        sens_fp = sens_fin
+      ),
+    by = "ID"
+  ) %>% 
+  left_join(
+    readxl::read_xlsx(fp_intervention_id),
+    by = "ID"
+  ) %>% 
   mutate(
-    day = as.factor(day),
     day_type = as.factor(day_type),
     male = as.factor(male)
   ) 
 ```
 
-## Select only Day 1 recordings
+# Descriptive statistics 
+
+## Missing data 
 ```{r}
+d0 %>% 
+  count(!is.na(awc_daily_rate))
+
+d0 %>% 
+  count(!is.na(awc_daily_rate), !is.na(itsea_symptoms), baby_age_18month <= 21)
+
 d0_d1 <-
   d0 %>% 
-  filter(day == 1)
+  filter(!is.na(awc_daily_rate), !is.na(itsea_symptoms) & baby_age_18month <= 21)
+
+d0_d1 %>% 
+  count(!is.na(NEG))
+
+d0_d1 %>% 
+  count(!is.na(sens_sfp))
+
+d0_d1 %>% 
+  filter(is.na(sens_sfp))
+
+d0_d1 %>% 
+  count(!is.na(sens_fp))
+
+d0_d1 %>% 
+  filter(is.na(sens_fp))
+
+d0_d1 %>% 
+  count(!is.na(intervention_group))
 ```
 
+Missing sensitivity from SFP:
+69: SFP incomplete 
+119: SFP incomplete
+1011: SFP incomplete
+1078: mother known to coders
 
-# Descriptive statistics 
+Missing sensitivity from FP:
+105: Free play incomplete
+1078: mother known to coders
+
+## Power
+```{r}
+pwr.f2.test(u = 1, v = 67, f2 = .12, sig.level = .05)
+```
+
+## Descriptive statistics 
+
+```{r}
+d0_d1 %>% 
+  summarize_at(
+    vars(
+      baby_age_18month,
+      baby_age_lena,
+      NEG,
+      ctc_daily_rate,
+      ctc_prop,
+      awc_daily_rate,
+      awc_prop,
+      sens_sfp,
+      sens_fp,
+      itsea_symptoms,
+      duration,
+      mom_age_6mo_visit,
+      income_needs,
+      percent_mother
+    ), 
+    list(~mean, ~sd, ~min, ~max), na.rm = TRUE)
+```
+
 
 Race:
 1, American Indian or Alaska Native
@@ -132,331 +222,183 @@ Income:
 5, $60,001-90,000
 6, $90,001-150,000
 7, Greater than $150,000
-
-## Missing data 
 ```{r}
 d0_d1 %>% 
-  count(!is.na(awc_daily_rate))
+  count(duration >= 12) %>% 
+  mutate(
+    per = n / sum(n)
+  )
 
 d0_d1 %>% 
-  count(!is.na(awc_daily_rate), !is.na(itsea_symptoms))
+  count(itsea_concern_ied) %>% 
+  mutate(
+    per = n / sum(n)
+  )
 
+d0_d1 %>% 
+  count(income_needs < 1) %>% 
+  mutate(
+    per = n / sum(n)
+  )
+
+d0_d1 %>% 
+  count(mom_ethnicity) %>% 
+  mutate(
+    per = n / sum(n)
+  )
+
+d0_d1 %>% 
+  count(mom_race) %>% 
+  mutate(
+    per = n / sum(n)
+  ) %>% 
+  arrange(desc(n))
+
+d0_d1 %>% 
+  count(education) %>% 
+  mutate(
+    per = n / sum(n)
+  ) %>% 
+  arrange(education)
+
+d0_d1 %>% 
+  count(day_type) %>% 
+  mutate(per = n / sum(n))
+```
+
+
+## Distributions 
+
+```{r}
+d0_d1 %>% 
+  identify_outliers_hist(x = ctc_daily_rate)
+
+d0_d1 %>% 
+  identify_outliers_hist(x = ctc_prop)
+
+d0_d1 %>% 
+  identify_outliers_hist(x = awc_daily_rate)
+
+d0_d1 %>% 
+  identify_outliers_hist(x = awc_prop)
+
+d0_d1 %>% 
+  identify_outliers_hist(x = sens_sfp)
+
+d0_d1 %>% 
+  identify_outliers_hist(x = sens_fp)
+
+d0_d1 %>% 
+  identify_outliers_hist(x = itsea_symptoms)
+```
+
+## Correlations
+```{r}
+correlation_table <- 
+  d0_d1 %>% 
+  dplyr::select(
+    mom_age_6mo_visit,
+    baby_age_lena,
+    baby_age_18month,
+    income_needs,
+    NEG,
+    duration, 
+    ctc_daily_rate,
+    ctc_prop,
+    awc_daily_rate,
+    awc_prop,
+    sens_sfp,
+    sens_fp,
+    itsea_symptoms
+  ) %>% 
+  correlate() %>% 
+  fashion()
+
+write_csv(
+   correlation_table,
+   "~/Desktop/BABIES/lena_symptoms/manuscript/correlation_table_20190830.csv"
+ )
+
+cor.test(d0_d1$income_needs, d0_d1$duration)
+cor.test(d0_d1$NEG, d0_d1$itsea_symptoms)
+
+cor.test(d0_d1$sens_sfp, d0_d1$itsea_symptoms)
+cor.test(d0_d1$sens_fp, d0_d1$awc_prop)
+
+cor.test(d0_d1$awc_daily_rate, d0_d1$awc_prop)
+cor.test(d0_d1$awc_daily_rate, d0_d1$ctc_daily_rate)
+cor.test(d0_d1$awc_daily_rate, d0_d1$ctc_prop)
+cor.test(d0_d1$awc_prop, d0_d1$ctc_daily_rate)
+cor.test(d0_d1$awc_prop, d0_d1$ctc_prop)
+cor.test(d0_d1$ctc_daily_rate, d0_d1$ctc_prop)
+
+cor.test(d0_d1$education, d0_d1$awc_daily_rate, method = "spearman")
+cor.test(d0_d1$education, d0_d1$ctc_daily_rate, method = "spearman")
+cor.test(d0_d1$education, d0_d1$awc_prop, method = "spearman")
+cor.test(d0_d1$education, d0_d1$ctc_prop, method = "spearman")
+```
+
+## t-tests by day type
+
+```{r}
+t.test(d0_d1$awc_daily_rate ~ d0_d1$day_type)
+
+t.test(d0_d1$ctc_daily_rate ~ d0_d1$day_type)
+
+t.test(d0_d1$awc_prop ~ d0_d1$day_type)
+
+t.test(d0_d1$ctc_prop ~ d0_d1$day_type)
+```
+
+## t-tests by race and ethnicity
+
+```{r}
 d0_d1 <-
   d0_d1 %>% 
-  filter(!is.na(itsea_symptoms))
-```
-
-## Descriptive statistics 
-
-```{r}
-d0_d1 %>% 
-  summarize_at(
-    vars(
-      baby_age_18month,
-      baby_age_lena,
-      NEG,
-      ctc_daily_rate,
-      ctc_prop,
-      awc_daily_rate,
-      awc_prop,
-      itsea_symptoms,
-      crisys_total_6mo,
-      duration,
-      mom_age_6mo_visit,
-      percent_mother
-    ), 
-    list(~mean, ~sd, ~min, ~max), na.rm = TRUE)
-
-d0_d1$baby_age_18month
-
-d0_d1 %>% 
-  filter(baby_age_18month < 7)
-
-```
-
-```{r}
-#counts and percentages for categorical variables (education, ethnicity, race, income)
-
-#income
-lena_18mo_sym_complete %>% 
-  distinct(ID, annual_income) %>% 
-  count(annual_income) %>% 
-  mutate(per = n / sum(n)) %>% 
-  arrange(desc(annual_income))
-
-lena_18mo_sym_complete %>% 
-  distinct(ID, income_needs) %>% 
-  count(income_needs < 1) %>% 
-  mutate(per = n / sum(n))
-
-#mom and child ethnicity
-lena_18mo_sym_complete %>% 
-  distinct(ID, mom_ethnicity) %>% 
-  count(mom_ethnicity) %>% 
-  mutate(per = n / sum(n))
-
-lena_18mo_sym_complete %>% 
-  distinct(ID, child_ethnicity) %>%
-  count(child_ethnicity) %>% 
-  mutate(per = n / sum(n))
-
-#mom and child race
-lena_18mo_sym_complete %>% 
-  distinct(ID, mom_race) %>%
-  count(mom_race) %>% 
-  mutate(per = n / sum(n)) %>% 
-  arrange(desc(per))
-
-lena_18mo_sym_complete %>% 
-  distinct(ID, child_race) %>%
-  count(child_race) %>% 
-  mutate(per = n / sum(n)) %>% 
-  arrange(desc(per))
-
-#mom education
-lena_18mo_sym_complete %>% 
-  distinct(ID, education) %>%
-  count(education) %>% 
-  mutate(per = n / sum(n)) %>% 
-  arrange(desc(per))
-```
-
-## Distributions and identification of outliers key variables
-```{r}
-
-lena_18mo_sym_complete %>% 
-  count(day_type)
-
-lena_18mo_sym_df %>% 
-  count(day)
-
-identify_outliers_hist(
-  data = lena_18mo_sym_df %>% 
-    distinct(ID, income_needs),
-  x = income_needs
-)
-
-identify_outliers_hist(
-  data = lena_18mo_sym_df %>% 
-    distinct(ID, education),
-  x = education
-)
-
-identify_outliers_hist(
-  data = lena_18mo_sym_df,
-  x = baby_age_lena
-) +
-  facet_wrap(. ~day, scale = "free")
-
-identify_outliers_hist(
-  data = lena_18mo_sym_df,
-  x = duration
-) +
-  facet_wrap(. ~day, scale = "free")
-
-
-identify_outliers_hist(
-  data = lena_18mo_sym_df,
-  x = awc_prop
-) +
-  facet_wrap(. ~day, scale = "free")
-
-
-identify_outliers_hist(
-  data = lena_18mo_sym_df,
-  x = ctc_prop
-) +
-  facet_wrap(. ~day, scale = "free")
-
-identify_outliers_hist(
-  data = lena_18mo_sym_df,
-  x = ctc_daily_rate
-) +
-  facet_wrap(. ~day, scale = "free")
-
-
-identify_outliers_hist(
-  data = lena_18mo_sym_df,
-  x = awc_daily_rate
-) +
-  facet_wrap(. ~day, scale = "free")
-
-identify_outliers_hist(
-  data = lena_18mo_sym_df,
-  x = cvc_daily_rate
-) +
-  facet_wrap(. ~day, scale = "free")
-
-identify_outliers_hist(
-  data = lena_18mo_sym_df %>% 
-    distinct(ID, itsea_symptoms),
-  x = log(itsea_symptoms)
-) 
-
-identify_outliers_hist(
-  data = lena_18mo_sym_df %>% 
-    distinct(ID, itsea_competence),
-  x = itsea_competence
-) 
-```
-
-## Winsorize variables with outliers > 3SD from mean
-```{r}
-lena_18mo_sym_df <-
-  lena_18mo_sym_df %>% 
   mutate(
-    ctc_daily_rate_win = winsorize(ctc_daily_rate, product = 3),
-    cvc_daily_rate_win = winsorize(cvc_daily_rate, product = 3),
-    awc_daily_rate_win = winsorize(awc_daily_rate, product = 3)
-  )
-```
-
-## Descriptives for key variables of interest
-```{r}
-lena_18mo_sym_complete %>% 
-  #group_by(day) %>% 
-  summarise_at(
-    vars(
-      itsea_competence, 
-      itsea_symptoms, 
-      crisys_total_6mo_win, 
-      crisys_total_6mo,
-      awc_prop, 
-      ctc_prop, 
-      cvc_prop,
-      ctc_daily_rate_win,
-      awc_daily_rate_win,
-      cvc_daily_rate_win
-    ), 
-    funs(
-      mean, 
-      sd, 
-      min, 
-      max
-    ), 
-    na.rm = TRUE
+    white = if_else(
+      mom_race == 5, 
+      1, 0
+    )
   )
 
-#calculate concern scores for ITSEA
-itsea_concern <-
-  lena_18mo_sym_day1 %>% 
-  left_join(
-    read_csv(q_18mo_file) %>% 
-      select(
-        ID,
-        itsea_symptoms,
-        itsea_competence,
-        itsea_activity,
-        itsea_agress,
-        itsea_depp,
-        itsea_gad,
-        itsea_negemo
-      ) 
-    ) %>% 
-      filter(
-        !is.na(itsea_symptoms)
-      )
-```
-
-## Correlation tables
-```{r}
-correlations_day1 <-
-  lena_18mo_sym_df %>% 
-  filter(day == 1) %>% 
-  select(
-    symptoms = itsea_symptoms,
-    "child age at 18 month assessment" = baby_age_18month,
-    "child age at 6 month assessment" = baby_age_lena,
-    "mother age at 6 month assessment" = mom_age_6mo_visit,
-    "income to needs ratio" = income_needs,
-    "mother's recent stress and trauma" = crisys_neg_total_6mo_win,
-    "LENA recording duration" = duration,
-    "AW quantity" = awc_daily_rate_win,
-    "CT quantity" = ctc_daily_rate_win,
-    "AW consistency" = awc_prop,
-    "CT consistency" = ctc_prop,
-    "IBQ Surgency Score" = SUR,
-    "IBQ Negative Affectivity Score" = NEG
-  ) 
-
-correlations_day1 %>% 
-  correlate(method = "pearson") %>% 
-  fashion()
-```
-
-```{r}
-correlations_day2 <-
-  lena_18mo_sym_df %>% 
-  filter(day == 2) %>% 
-  select(
-   symptoms = itsea_symptoms,
-    "child age at 18 month assessment" = baby_age_18month,
-    "child age at 6 month assessment" = baby_age_lena,
-    "mother age at 6 month assessment" = mom_age_6mo_visit,
-    "income to needs ratio" = income_needs,
-    "mother's recent stress and trauma" = crisys_neg_total_6mo_win,
-    "LENA recording duration" = duration,
-    "AW quantity" = awc_daily_rate_win,
-    "CT quantity" = ctc_daily_rate_win,
-    "AW consistency" = awc_prop,
-    "CT consistency" = ctc_prop,
-    "IBQ Surgency Score" = SUR,
-    "IBQ Negative Affectivity Score" = NEG
-  ) 
-
-correlations_day2 %>% 
-  correlate(method = "pearson") %>% 
-  fashion()
-```
+# white vs. non-white
+t.test(d0_d1$itsea_symptoms ~ d0_d1$white)
+t.test(d0_d1$ctc_daily_rate ~ d0_d1$white)
+t.test(d0_d1$ctc_prop ~ d0_d1$white)
+t.test(d0_d1$awc_daily_rate ~ d0_d1$white)
+t.test(d0_d1$awc_prop ~ d0_d1$white)
+t.test(d0_d1$sens_fp ~ d0_d1$white)
+t.test(d0_d1$sens_sfp ~ d0_d1$white)
 
 
-## T-tests by day of recording and day type
-
-```{r}
-t.test(lena_18mo_sym_df$awc_daily_rate ~ lena_18mo_sym_df$day)
-
-t.test(lena_18mo_sym_df$ctc_daily_rate ~ lena_18mo_sym_df$day)
-
-t.test(lena_18mo_sym_df$cvc_daily_rate ~ lena_18mo_sym_df$day)
-
-t.test(lena_18mo_sym_df$awc_prop ~ lena_18mo_sym_df$day)
-
-t.test(lena_18mo_sym_df$ctc_prop ~ lena_18mo_sym_df$day)
-
-t.test(lena_18mo_sym_df$cvc_prop ~ lena_18mo_sym_df$day)
-
+# latina vs. non-Latina
+t.test(d0_d1$itsea_symptoms ~ d0_d1$mom_ethnicity)
+t.test(d0_d1$ctc_daily_rate ~ d0_d1$mom_ethnicity)
+t.test(d0_d1$ctc_prop ~ d0_d1$mom_ethnicity)
+t.test(d0_d1$awc_daily_rate ~ d0_d1$mom_ethnicity)
+t.test(d0_d1$awc_prop ~ d0_d1$mom_ethnicity)
+t.test(d0_d1$sens_fp ~ d0_d1$mom_ethnicity)
+t.test(d0_d1$sens_sfp ~ d0_d1$mom_ethnicity)
 ```
 
 # Results 
 
-## Associations of linguistinc input with ITSEA symptoms 
+## Associations of LENA measures with ITSEA symptoms 
 
-## Effect code categorical variables
+### Effect code categorical variables
 
 ```{r}
-contrasts(lena_18mo_sym_df$day) = c(-1, 1)
-contrasts(lena_18mo_sym_df$day_type) = c(-1, 1)
-contrasts(lena_18mo_sym_df$male) = c(-1, 1)
+contrasts(d0_d1$day_type) = c(-1, 1)
+contrasts(d0_d1$male) = c(-1, 1)
 ```
 
-## Create Day 1 and Day 2 data frames
-```{r}
-lena_18mo_sym_day1 <-
-  lena_18mo_sym_df %>% 
-  filter(day == 1)
-
-lena_18mo_sym_day2 <-
-  lena_18mo_sym_df %>% 
-  filter(day == 2)
-```
-
-
-#### Formal model fitting 
+### Formal model fitting 
 ```{r}
 symp <-
   lm(
     itsea_symptoms ~ 1,
-    data = lena_18mo_sym_day1
+    data = d0_d1
   )
 
 # baby age at lena
@@ -464,42 +406,23 @@ symp_babyage <-
   lm(
     itsea_symptoms ~ 
       scale(baby_age_lena, scale = FALSE),
-    data = lena_18mo_sym_day1
+    data = d0_d1
   )
 anova(symp, symp_babyage)
-
+```
+```{r}
 # mom age at lena
 symp_momage <-
   lm(
     itsea_symptoms ~ 
       scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE),
-    data = lena_18mo_sym_day1
+    data = d0_d1
   )
-#anova(symp_babyage, symp_momage)
+anova(symp_babyage, symp_momage)
+```
 
-# day type
-symp_daytype <-
-  lm(
-    itsea_symptoms ~ 
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      day_type,
-    data = lena_18mo_sym_day1
-  )
-#anova(symp_momage, symp_daytype)
-
-# duration
-symp_duration <-
-  lm(
-    itsea_symptoms ~ 
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(duration, scale = FALSE),
-    data = lena_18mo_sym_day1
-  )
-#anova(symp_momage, symp_duration)
-
+```{r}
 # sex
 symp_sex <-
   lm(
@@ -507,21 +430,22 @@ symp_sex <-
       scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
       male,
-    data = lena_18mo_sym_day1
+    data = d0_d1
   )
-#anova(symp_momage, symp_sex)
+anova(symp_momage, symp_sex)
+```
 
-# NEG temperament
-lena_18mo_sym_day1_temperament <- 
-  lena_18mo_sym_day1 %>% 
+```{r}
+d0_d1_temperament <- 
+  d0_d1 %>% 
   filter(!is.na(NEG))
 
-symp_momage_temperament <-
+symp_momage_NEG <-
   lm(
     itsea_symptoms ~ 
       scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE),
-    data = lena_18mo_sym_day1_temperament
+    data = d0_d1_temperament
   )
 
 symp_NEG <-
@@ -530,177 +454,191 @@ symp_NEG <-
       scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
       scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1_temperament
+    data = d0_d1_temperament
   )
 
-#anova(symp_momage_temperament, symp_NEG)
-
-# SUR temperament
-symp_SUR <-
-  lm(
-    itsea_symptoms ~ 
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE) +
-      scale(SUR, scale = FALSE),
-    data = lena_18mo_sym_day1_temperament
-  )
-
-#anova(symp_NEG, symp_SUR)
-
-# CVC rate
-symp_CVC <-
-  lm(
-    itsea_symptoms ~ 
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE) +
-      scale(cvc_daily_rate_win, scale = FALSE),
-    data = lena_18mo_sym_day1_temperament
-  )
-
-#anova(symp_NEG, symp_CVC)
+anova(symp_momage_NEG, symp_NEG)
 ```
 
 ```{r}
 final_base_model <- 
   lm(
-    itsea_symptoms~ 
+    itsea_symptoms ~ 
       scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
       scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1 
+    data = d0_d1 
   )
+summary(final_base_model)
 
-crisys_model <- 
-  lm(
-    itsea_symptoms~ 
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE) +
-      scale(crisys_neg_total_6mo_win, scale = FALSE),
-    data = lena_18mo_sym_day1 
-  )
+r.squared_base <- summary(final_base_model)$r.squared
 
-R_squared_base <- summary(final_base_model)$r.squared
-R_squared_crisys <- summary(crisys_model)$r.squared
-R_chg_crisys <- R_squared_crisys - R_squared_base
+#save residuals
+d0_d1 <-
+  d0_d1 %>% 
+  add_residuals(final_base_model, "resid_symp")
+
 ```
 
-### Dependability
+### Main effect of AWC consistency
 
-### AWC dependability day 1
 ```{r}
-sym_awcprop <- 
+sym_awc_prop <- 
   lm(
-    itsea_symptoms~ 
+    itsea_symptoms ~ 
       scale(awc_prop, scale = FALSE) +
-      scale(crisys_neg_total_6mo_win, scale = FALSE) +
       scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
       scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1 
+    data = d0_d1 
   )
+summary(sym_awc_prop)
 
-summary(sym_awcprop)
+std_beta(sym_awc_prop)
 
-sym_awcprop_int <- 
-  lm(
-    itsea_symptoms~ 
-      scale(awc_prop, scale = FALSE) * scale(crisys_neg_total_6mo_win, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1 
-  )
+r_chg_awcprop <- summary(sym_awc_prop)$r.squared - r.squared_base
 
-summary(sym_awcprop_int)
-```
+r_chg_awcprop
 
-### CTC dependability day 1 
-```{r}
-sym_ctcprop <- 
-  lm(
-    itsea_symptoms~ 
-      scale(ctc_prop, scale = FALSE) +
-      scale(crisys_neg_total_6mo_win, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1 
-  )
-summary(sym_ctcprop)
-
-R_chg_ctcprop <- summary(sym_ctcprop)$r.squared - R_squared_crisys
-
-sym_ctcprop_int <- 
-  lm(
-    itsea_symptoms~ 
-      scale(ctc_prop, scale = FALSE) * scale(crisys_neg_total_6mo_win, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1 
-  )
+confint(sym_awc_prop)
 ```
 
 ```{r}
 #assessing outliers
-outlierTest(sym_ctcprop) # Bonferonni p-value for most extreme obs
-qqPlot(sym_ctcprop, main = "QQ Plot") #qq plot for studentized resid 
+outlierTest(sym_awc_prop) # Bonferonni p-value for most extreme obs
+qqPlot(sym_awc_prop, main = "QQ Plot") #qq plot for studentized resid 
 
 # Evaluate Collinearity
-vif(sym_ctcprop) # variance inflation factors 
+vif(sym_awc_prop) # variance inflation factors 
 
 # Global test of model assumptions
-gvlma(sym_ctcprop) 
+gvlma(sym_awc_prop) 
+```
 
-# To address skeqness, evaluate model with sqrt-transform of itsea_symptoms
-symsqrt_ctcprop <- 
+```{r}
+sym_awc_prop_sqrt <- 
   lm(
-    sqrt(itsea_symptoms)~ 
-      scale(ctc_prop, scale = FALSE) +
-      scale(crisys_neg_total_6mo_win, scale = FALSE) +
+    sqrt(itsea_symptoms) ~ 
+      scale(awc_prop, scale = FALSE) +
       scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
       scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1 
+    data = d0_d1 
   )
-summary(symsqrt_ctcprop)
+summary(sym_awc_prop_sqrt)
 
-gvlma(symsqrt_ctcprop) 
+gvlma(sym_awc_prop_sqrt) 
 ```
 
+```{r}
+d0_d1 %>% 
+  ggplot(aes(awc_prop, resid_symp)) +
+  geom_point(size = 4, alpha = 1/2) +
+  geom_smooth(method = "lm", size = 3, se = FALSE, color = "black") +
+  scale_x_continuous(breaks = seq.int(1, 7, .5)) +
+  labs(
+    x = "Consistency of adult words during infancy",
+    y = "Toddler symptoms of psychopathology\n(residuals)"
+  ) +
+  theme_lena
 
-### Rate of input
+ggsave(
+  "~/Desktop/BABIES/lena_symptoms/manuscript/awc_prop_symptoms.png",
+  width = 7,
+  height = 5
+)
+```
 
-### AWC rate day 1 
+### Main effect of CT consistency
+
+```{r}
+sym_ctc_prop <- 
+  lm(
+    itsea_symptoms ~ 
+      scale(ctc_prop, scale = FALSE) +
+      scale(baby_age_lena, scale = FALSE) + 
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(NEG, scale = FALSE),
+    data = d0_d1 
+  )
+summary(sym_ctc_prop)
+
+std_beta(sym_ctc_prop)
+
+r_chg_ctcprop <- summary(sym_ctc_prop)$r.squared - r.squared_base
+
+r_chg_ctcprop
+
+confint(sym_ctc_prop)
+```
+
+```{r}
+#assessing outliers
+outlierTest(sym_ctc_prop) # Bonferonni p-value for most extreme obs
+qqPlot(sym_ctc_prop, main = "QQ Plot") #qq plot for studentized resid 
+
+# Evaluate Collinearity
+vif(sym_ctc_prop) # variance inflation factors 
+
+# Global test of model assumptions
+gvlma(sym_ctc_prop) 
+```
+
+```{r}
+sym_ctc_prop_sqrt <- 
+  lm(
+    sqrt(itsea_symptoms) ~ 
+      scale(ctc_prop, scale = FALSE) +
+      scale(baby_age_lena, scale = FALSE) + 
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(NEG, scale = FALSE),
+    data = d0_d1 
+  )
+summary(sym_ctc_prop_sqrt)
+
+gvlma(sym_ctc_prop_sqrt) 
+```
+
+```{r}
+d0_d1 %>% 
+  ggplot(aes(ctc_prop, resid_symp)) +
+  geom_point(alpha = 1/2, size = 4) +
+  geom_smooth(method = "lm", size = 3, se = FALSE, color = "black") +
+  scale_x_continuous(breaks = seq.int(1, 7, .5)) +
+  labs(
+    x = "Consistency of conversational turns during infancy",
+    y = "Toddler symptoms of psychopathology\n(residuals)"
+  ) +
+  theme_lena
+
+ggsave(
+  "~/Desktop/BABIES/lena_symptoms/manuscript/ctc_prop_symptoms.png",
+  width = 7,
+  height = 5
+)
+```
+
+### Main effect of AWC rate
+
 ```{r}
 sym_awc_rate <- 
   lm(
-    itsea_symptoms~ 
-      scale(awc_daily_rate_win, scale = FALSE) +
-      scale(crisys_neg_total_6mo_win, scale = FALSE) +
+    itsea_symptoms ~ 
+      scale(awc_daily_rate, scale = FALSE) +
       scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
       scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1 
+    data = d0_d1 
   )
 summary(sym_awc_rate)
 
-R_chg_awcrate <- summary(sym_awc_rate)$r.squared - R_squared_crisys
+std_beta(sym_awc_rate)
 
-sym_awc_rate_int <- 
-  lm(
-    itsea_symptoms~ 
-      scale(awc_daily_rate_win, scale = FALSE) * scale(crisys_neg_total_6mo_win, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1 
-  )
+r_chg_awcrate <- summary(sym_awc_rate)$r.squared - r.squared_base
 
-summary(sym_awc_rate_int)
+r_chg_awcrate
+
+confint(sym_awc_rate)
 ```
 
 ```{r}
@@ -715,246 +653,427 @@ vif(sym_awc_rate) # variance inflation factors
 gvlma(sym_awc_rate) 
 ```
 
-### CTC rate day 1 
+```{r}
+sym_awc_rate_sqrt <- 
+  lm(
+    sqrt(itsea_symptoms) ~ 
+      scale(awc_daily_rate, scale = FALSE) +
+      scale(baby_age_lena, scale = FALSE) + 
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(NEG, scale = FALSE),
+    data = d0_d1 
+  )
+summary(sym_awc_rate_sqrt)
+
+gvlma(sym_awc_rate_sqrt) 
+```
+
+```{r}
+d0_d1 %>% 
+  ggplot(aes(awc_daily_rate, resid_symp)) +
+  geom_point(size = 4) +
+  geom_smooth(method = "lm", size = 3, se = FALSE) +
+  scale_x_continuous(breaks = seq.int(300, 2500, 300)) +
+  labs(
+    x = "Adults words per hour during infancy",
+    y = "Toddler symptoms of psychopathology\n(residuals)"
+  ) +
+  theme_lena
+
+ggsave(
+  "~/Desktop/BABIES/lena_symptoms/manuscript/awc_rate_symptoms.png",
+  width = 7,
+  height = 5
+)
+```
+
+
+### Main effect of CTC rate
+
 ```{r}
 sym_ctc_rate <- 
   lm(
-    itsea_symptoms~ 
-      scale(ctc_daily_rate_win, scale = FALSE) +
-      scale(crisys_neg_total_6mo_win, scale = FALSE) +
+    itsea_symptoms ~ 
+      scale(ctc_daily_rate, scale = FALSE) + 
       scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
       scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1 
+    data = d0_d1 
   )
 summary(sym_ctc_rate)
 
-R_squared_ctcrate <- summary(sym_ctc_rate)$r.squared 
-R_chg_ctcrate <- R_squared_ctcrate - R_squared_crisys
+std_beta(sym_ctc_rate)
 
-sym_ctc_rate_int <- 
-  lm(
-    itsea_symptoms~ 
-      scale(ctc_daily_rate_win, scale = FALSE) * scale(crisys_neg_total_6mo_win, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1 
-  )
+r_chg_ctcrate <- summary(sym_ctc_rate)$r.squared - r.squared_base
 
-summary(sym_ctc_rate_int)
+r_chg_ctcrate
 
-R_chg_ctcrate_int <- summary(sym_ctc_rate_int)$r.squared - R_squared_ctcrate
+confint(sym_ctc_rate)
 ```
 
 ```{r}
 #assessing outliers
-outlierTest(sym_ctc_rate_int) # Bonferonni p-value for most extreme obs
-qqPlot(sym_ctc_rate_int, main = "QQ Plot") #qq plot for studentized resid 
+outlierTest(sym_ctc_rate) # Bonferonni p-value for most extreme obs
+qqPlot(sym_ctc_rate, main = "QQ Plot") #qq plot for studentized resid 
 
 # Evaluate Collinearity
-vif(sym_ctc_rate_int) # variance inflation factors 
+vif(sym_ctc_rate) # variance inflation factors 
 
 # Global test of model assumptions
-gvlma(sym_ctc_rate_int) 
+gvlma(sym_ctc_rate) 
+```
 
-
-# To address skeqness, evaluate model with sqrt-transform of itsea_symptoms
-symsqrt_ctc_rate_int <- 
+```{r}
+sym_ctc_rate_sqrt <- 
   lm(
     sqrt(itsea_symptoms) ~ 
-      scale(ctc_daily_rate_win, scale = FALSE) * scale(crisys_neg_total_6mo_win, scale = FALSE) +
+      scale(ctc_daily_rate, scale = FALSE) +
       scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
       scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1 
+    data = d0_d1 
   )
-summary(symsqrt_ctc_rate_int)
+summary(sym_ctc_rate_sqrt)
 
-gvlma(symsqrt_ctc_rate_int) 
+gvlma(sym_ctc_rate_sqrt) 
 ```
 
-### Specificity of CTC rate effects
-
-#### CTC rate day 1 when controlling for CVC rate
-
 ```{r}
-sym_ctc_cvc_rate <- 
-  lm(
-    itsea_symptoms~ 
-      scale(ctc_daily_rate_win, scale = FALSE) * scale(crisys_neg_total_6mo_win, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE) +
-      scale(cvc_daily_rate_win, scale = FALSE),
-    data = lena_18mo_sym_day1 
-  )
-
-summary(sym_ctc_cvc_rate)
-```
-
-#### CTC rate day 1 when controlling for CTC prop
-
-```{r}
-sym_ctc_ctcprop <- 
-  lm(
-    itsea_symptoms~ 
-      scale(ctc_daily_rate_win, scale = FALSE) * scale(crisys_neg_total_6mo_win, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE) +
-      scale(ctc_prop, scale = FALSE),
-    data = lena_18mo_sym_day1 
-  )
-
-summary(sym_ctc_ctcprop)
-```
-
-#### CTC rate day 1 when controlling for AWC rate
-
-```{r}
-sym_ctc_awc <- 
-  lm(
-    itsea_symptoms~ 
-      scale(ctc_daily_rate_win, scale = FALSE) * scale(crisys_neg_total_6mo_win, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE) +
-      scale(awc_daily_rate_win, scale = FALSE),
-    data = lena_18mo_sym_day1 
-  )
-
-summary(sym_ctc_awc)
-```
-
-### CTC rate simple effects
-```{r}
-sym_ctc_rate_lo <- 
-  lm(
-    itsea_symptoms ~ 
-      I(scale(ctc_daily_rate_win, scale = FALSE) + sd(ctc_daily_rate_win, na.rm = TRUE)) * 
-      scale(crisys_neg_total_6mo_win, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1 
-  )
-
-summary(sym_ctc_rate_lo)
-
-sym_ctc_rate_hi <- 
-  lm(
-    itsea_symptoms ~ 
-      I(scale(ctc_daily_rate_win, scale = FALSE) - sd(ctc_daily_rate_win, na.rm = TRUE)) * 
-      scale(crisys_neg_total_6mo_win, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
-    data = lena_18mo_sym_day1 
-  )
-```
-
-# Visualize significant effects
-
-```{r}
-theme_lena <-
-  theme_minimal() +
-  theme(
-    panel.grid = element_blank(),
-    plot.title = element_text(size = 18, hjust = .5),
-    axis.title = element_text(size = 18),
-    axis.text = element_text(size = 16),
-    legend.title = element_text(size = 18), 
-    legend.text = element_text(size = 16),
-    legend.position = "bottom"
-  )
-  
-```
-
-# Main effect of CTC prop
-```{r}
-lena_18mo_sym_day1 <-
-  lena_18mo_sym_day1 %>% 
-  add_residuals(crisys_model, "symp_resid_crisys")
-
-lena_18mo_sym_day1 %>% 
-  ggplot(aes(ctc_prop, symp_resid_crisys)) +
-    geom_point(size = 4) +
-  geom_smooth(method = "lm", size = 3, se = FALSE) +
-  scale_x_continuous(breaks = seq.int(0, .7, .1)) +
-  labs(
-    x = "Dependability of conversational turns at age 6 months",
-    y = "Symptoms at age 18 months\n(residuals)"
-  ) +
-  theme_lena
-  
-```
-
-# Main effect of AWC rate
-```{r}
-lena_18mo_sym_day1 %>% 
-  ggplot(aes(awc_daily_rate_win, symp_resid_crisys)) +
-    geom_point(size = 4) +
-  geom_smooth(method = "lm", size = 3, se = FALSE) +
-  scale_x_continuous(breaks = seq.int(300, 2500, 300)) +
-  labs(
-    x = "Adults words per hour at age 6 months",
-    y = "Symptoms at age 18 months\n(residuals)"
-  ) +
-  theme_lena
-  
-```
-
-# Main effect of CTC rate
-```{r}
-lena_18mo_sym_day1 %>% 
-  ggplot(aes(ctc_daily_rate_win, symp_resid_crisys)) +
+d0_d1 %>% 
+  ggplot(aes(ctc_daily_rate, resid_symp)) +
   geom_point(size = 4) +
   geom_smooth(method = "lm", size = 3, se = FALSE) +
   scale_x_continuous(breaks = seq.int(0, 60, 10)) +
   labs(
-    x = "Conversational turns per hour at age 6 months",
-    y = "Symptoms at age 18 months\n(residuals)"
+    x = "Conversational turns per hour during infancy",
+    y = "Toddler symptoms of psychopathology\n(residuals)"
   ) +
   theme_lena
+
+ggsave(
+  "~/Desktop/BABIES/lena_symptoms/manuscript/ctc_rate_symptoms.png",
+  width = 7,
+  height = 5
+)
   
 ```
 
+# Effects of laboratory caregiving on ITSEA symptoms
+
+## Sensitivity during play
+```{r}
+sym_fp <-
+  lm(
+    itsea_symptoms ~ 
+      scale(baby_age_lena, scale = FALSE) + 
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(NEG, scale = FALSE) +
+      scale(sens_fp, scale = FALSE) +
+      scale(ctc_prop, scale = FALSE),
+    data = d0_d1 
+  )
+summary(sym_fp)
+
+std_beta(sym_fp)
+
+r_chg_fp <- summary(sym_fp)$r.squared - r.squared_base
+
+r_chg_fp
+
+confint(sym_fp)
+``` 
 
 ```{r}
-lena_18mo_sym_day1 <-
-  lena_18mo_sym_day1 %>% 
-  add_residuals(final_base_model, "sym_resid_cov")
-
-lena_18mo_sym_day1 %>% 
-  ggplot(
-    aes(
-      crisys_neg_total_6mo_win, 
-      sym_resid_cov, 
-      color = ctc_daily_rate_win > 25
-    )
-  ) +
+d0_d1 %>% 
+  ggplot(aes(sens_fp, resid_symp)) +
   geom_point(size = 4) +
-  geom_smooth(size = 3, method = "lm", se = FALSE) +
-  scale_color_manual(
-    labels = c("<25 CTs/hour", ">25 CTs/hour"),
-    values = c("red", "blue")
-  ) +
-  scale_y_continuous(breaks = seq.int(-1, 1.5, .5)) +
-  scale_x_continuous(breaks = seq.int(0, 10, 1)) +
+  geom_smooth(method = "lm", size = 3, se = FALSE, color = "red") +
+  scale_x_continuous(breaks = seq.int(1, 7, .5)) +
   labs(
-    color = NULL,
-    x = "Maternal self-reported stressors\n at infant age 6 months",
-    y = "Symptoms at age 18 months\n(residuals)"
+    x = "Maternal sensitivity during play",
+    y = "Toddler symptoms of psychopathology\n(residuals)"
   ) +
   theme_lena
+
+ggsave(
+  "~/Desktop/BABIES/lena_symptoms/manuscript/sens_fp_symptoms.png",
+  width = 7,
+  height = 5
+)
 ```
 
-
-# save dataframe used for analyses 
+## Sensitivity to distress
 ```{r}
-#write_csv(lena_18mo_sym_df, "~/Desktop/lena_18mo_symptoms/data_for_analyses_20190519.csv")
-write_csv(lena_18mo_sym_day1, "~/Desktop/lena_18mo_symptoms/Data/data_for_analyses_20190519.csv")
+sym_sfp <-
+  lm(
+    itsea_symptoms ~ 
+      scale(baby_age_lena, scale = FALSE) + 
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(NEG, scale = FALSE) +
+      scale(sens_sfp, scale = FALSE),
+    data = d0_d1 
+  )
+summary(sym_sfp)
+
+std_beta(sym_sfp)
+
+r_chg_sfp <- summary(sym_sfp)$r.squared - r.squared_base
+
+r_chg_sfp
+
+confint(sym_sfp)
 ```
+
+```{r}
+d0_d1 %>% 
+  ggplot(aes(sens_sfp, resid_symp)) +
+  geom_point(size = 4) +
+  geom_smooth(method = "lm", size = 3, se = FALSE, color = "red") +
+  scale_x_continuous(breaks = seq.int(1, 7, .5)) +
+  labs(
+    x = "Maternal sensitivity to distress",
+    y = "Toddler symptoms of psychopathology\n(residuals)"
+  ) +
+  theme_lena
+
+ggsave(
+  "~/Desktop/BABIES/lena_symptoms/manuscript/sens_sfp_symptoms.png",
+  width = 7,
+  height = 5
+)
 ```
+
+# Additional/follow-up analyses 
+
+## CTC by time of day
+
+### correlations across time of day
+```{r}
+d0_d1 %>% 
+  ungroup() %>% 
+  select(
+    ctc_daily_rate,
+    time_day_AFT:time_day_PM
+  ) %>% 
+  correlate()
+```
+
+### Mean differences in rate by time of day
+```{r}
+time_day_lf <-
+  d0_d1 %>% 
+  select(
+    ID,
+    time_day_AFT,
+    time_day_AM,
+    time_day_MID,
+    time_day_PM
+  ) %>% 
+  gather(time, ct_rate, time_day_AFT:time_day_PM) %>% 
+  mutate(
+    time = as.factor(time)
+  )
+
+ct_time <- lmer(ct_rate ~ time + (1|ID), data = time_day_lf)
+anova(ct_time)
+
+time_day_lf %>% 
+  group_by(time) %>% 
+  summarise(
+    mean = mean(ct_rate, na.rm = TRUE),
+    sd = sd(ct_rate, na.rm = TRUE)
+  )
+```
+
+### Visualize
+```{r}
+lena_time <-
+  read_csv(lena_time_file) %>% 
+  left_join(
+    read_csv(q_18mo_file) %>% 
+      select(ID, itsea_symptoms),
+    by = "ID"
+  ) %>% 
+  filter(!is.na(itsea_symptoms))
+
+lena_time %>% 
+  ggplot(aes(time_hours, CTC.Actual)) +
+  geom_jitter(alpha = 1/6, aes(color = time_day)) +
+  geom_smooth(color = "black") +
+  scale_x_continuous(breaks = seq.int(0, 24, 2)) +
+  scale_y_continuous(breaks = seq.int(0, 35, 5)) +
+  theme_lena +
+  theme(
+    legend.position = "none"
+  ) +
+  labs(
+    x = "Time of day\n(hours since midnight)",
+    y = "Conversational turn count"
+  )
+```
+
+```{r}
+d0_d1 %>% 
+  filter(time_day_PM < 70) %>% 
+  select(
+    resid_symp,
+    time_day_AM:time_day_PM, time_day_AFT
+  ) %>% 
+  gather(time, ctc_rate, time_day_AM:time_day_AFT) %>% 
+  mutate(
+    time = factor(
+      time,
+      levels = c("time_day_AM", "time_day_MID", "time_day_AFT", "time_day_PM"),
+      labels = c("Morning", "Midday", "Afternoon", "Evening")
+    )
+  ) %>% 
+  ggplot(aes(ctc_rate, resid_symp)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_grid(.~time, scale = "free") +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 16),
+    axis.title = element_text(size = 16),
+    axis.text = element_text(size = 12)
+  ) +
+  labs(
+    x = "Conversational turns per hour during infancy",
+    y = "Toddler symptoms of psychopathology\n(residuals)"
+  ) 
+
+ggsave(
+  "~/Desktop/BABIES/lena_symptoms/manuscript/ctc_time_symp.png",
+  width = 10,
+  height = 5
+  )
+  
+```
+
+### Collapsing based on time of day: difference in correlation with symptoms between daytime CTC and evening CTC
+
+The difference between two dependent correlations sharing one variable (Williams's Test); r.test function from psych package
+```{r}
+d0_d1 <-
+  d0_d1 %>% 
+  group_by(ID) %>% 
+  mutate(
+    ctc_rate_day = mean(
+      c(
+        time_day_AFT,
+        time_day_MID,
+        time_day_AM
+      ),
+      na.rm = TRUE
+    )
+  )
+
+ctc_day_r <- cor.test(d0_d1$ctc_rate_day, d0_d1$resid_symp)
+ctc_day_r <- ctc_day_r$estimate
+
+ctc_pm_r <- cor.test(d0_d1$time_day_PM, d0_d1$resid_symp)
+ctc_pm_r <- ctc_pm_r$estimate
+
+pm_day_r <- cor.test(d0_d1$time_day_PM, d0_d1$ctc_rate_day)
+pm_day_r <- pm_day_r$estimate
+
+r.test(n = 65, r12 = ctc_day_r, r13 = ctc_pm_r, r23 = pm_day_r)
+```
+
+
+##Regularized regression
+We have observations on n units of a DV and p predictors, where p >> n.  (In typical regressions, n ≈ 10*p > p.)  In principle, using any n of the p predictors allows us to ‘predict’ the n DV values perfectly.  However, prediction of new observations is likely to be ‘poor’.  This problem is ill-conditioned.  The data set (or system) is said to be over-determined.
+
+Regularization resolves non-complementary goals of wants to drive down the sum of squared errors in the model for the observed data but also wanting your model to predict new data (avoding overfitting).
+
+The elastic net (Zou & Hastie, 2005) was designed to achieve the sparseness of the LASSO, and the ability of ridge regression to select correlated features. The penalty used is a weighted average of penalties on the L1-norm and the L2-norm. This model can be rewritten as a type of LASSO and, therefore, can be estimated with the efficiency of the LASSO. Basically you are getting sparseness without losing important information, which is particularly relevent for brain data. It is like a stretchable fishing net that retains ‘all the big fish’.
+
+Choosing the value of λ under the L1-norm, which results in some bi  = 0, is like choosing which predictors to include in a stepwise regression.The optimal λ (penalty on complexity) is the value at which the CV error of the optimal model is a minimum. 
+
+```{r}
+d0_rr <-
+  d0_d1 %>% 
+  select(
+    resid_symp,
+    ctc_rate_day,
+    time_day_PM,
+    awc_daily_rate,
+    ctc_prop,
+    awc_prop,
+    sens_fp,
+    sens_sfp
+  ) %>% 
+  na.omit()
+```
+
+```{r}
+z_score <- function(x) {
+  diff_mu <- x - mean(x, na.rm = T)
+  sd <- sd(x, na.rm = T)
+  diff_mu / sd
+}
+
+predictors <- scale(d0_rr[3:9], scale = TRUE)
+
+symptoms <- z_score(d0_rr$resid_symp)
+```
+
+##Fit glmnet model for income ROIs in boys
+```{r}
+fit <- glmpath(predictors, symptoms, family = "gaussian")
+```
+
+```{r}
+print(fit)
+summary(fit)
+```
+
+
+```{r}
+library(directlabels)
+
+d_predictor <- 
+  fit$b.predictor %>% # extract the coefficient estimates
+  data.frame() %>% # turn them into a dataframe
+  rownames_to_column(var = "step") %>% # add the rownames as a "step" variable
+  mutate(
+    lambda = fit$lambda, # add the lambda values for each step
+    aic = fit$aic, # add AIC for each step
+    bic = fit$bic,
+    deviance = fit$deviance
+  ) %>% # add BIC for each step
+  gather(predictor, coeff, ctc_rate_day:sens_sfp) %>% # turn into longform
+  arrange(step, predictor) # arrange by step number and selfrating
+
+ggplot(data = d_predictor, aes(x = lambda, y = coeff, color = predictor)) +
+  geom_point() +
+  geom_smooth(method = "loess", alpha = 0) +
+  theme_bw() +
+  theme(
+    text = element_text(size = 20),
+    legend.position = "none"
+  ) + 
+  geom_dl(aes(label = predictor), method = list("first.qp", cex = 1)) +
+  xlim(-5, max(d_predictor$lambda))
+
+ggplot(data = d_predictor, aes(x = deviance, y = coeff, color = predictor)) +
+  geom_point() +
+  geom_smooth(method = "loess", alpha = 0) +
+  theme_bw() +
+  theme(
+    text = element_text(size = 20),
+    legend.position = "none"
+  ) + 
+  geom_dl(aes(label = predictor), method = list("first.qp", cex = 1)) +
+  xlim(40, max(d_predictor$deviance))
+
+```
+
+```{r}
+d0_d1 %>% 
+  select(ID, date_record) %>% 
+  arrange(ID)
+```
+003 6/17/16
+018 10/22/16
 

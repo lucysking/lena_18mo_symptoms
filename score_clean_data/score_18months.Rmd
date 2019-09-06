@@ -389,6 +389,16 @@ q_18month_scored <-
   ungroup() 
 ```
 
+```{r}
+q_18month_scored %>% 
+  select(
+    itsea_intern,
+    itsea_extern,
+    itsea_negemo
+  ) %>% 
+  psych(alpha)
+```
+
 ## Calculate clinical cut scores
 ```{r}
 q_18month_scored <-
@@ -505,6 +515,8 @@ q_18month_scored %>%
   facet_wrap(.~itsea_subscale)
 
 ```
+
+
 
 # ITSEA EFA
 ```{r}

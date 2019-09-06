@@ -1,0 +1,51 @@
+---
+title: "Clean ITS LENA files"
+author: "Lucy King"
+date: "9/3/2019"
+output: html_document
+---
+
+# Environment setup
+```{r}
+library(tidyverse)
+library(rlena)
+
+#Files
+its_file_path <- "~/Desktop/BABIES/lena_symptoms/data_final/test/"
+
+its_files_df <-
+  tibble(
+    path = 
+      list.files(
+        path = its_file_path,
+        all.files = TRUE,
+        no.. = TRUE,
+        full.names = TRUE
+      )
+  ) %>% 
+  filter(
+    str_detect(path, "/.DS_Store") == FALSE
+  )
+```
+
+# Read in data
+```{r}
+its <-
+  its_files_df %>%
+  mutate(
+    data = map(
+      path, 
+      read_its_file
+    )
+  )
+
+its <- read_its_file("~/Desktop/BABIES/lena_symptoms/data_final/test/1011_e20180417_152416_003673.its")
+```
+
+```{r}
+its %>%
+  unnest(data)
+
+gather_recordings(its)
+```
+
