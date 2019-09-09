@@ -17,9 +17,9 @@ library(GPArotation)
 # Files
 
 ## Fran file paths
-q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/qs_18mo_cs_datecleaned_20190726.csv"
-q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/qs_18mo_long_datecleaned_20190726.csv"
-demographics_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/demographics_20190726.csv"
+q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_cs_datecleaned_20190726.csv"
+q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_long_datecleaned_20190726.csv"
+demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190726.csv"
 
 ## Lucy file paths
 # q_18month_cs_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/qs_18mo_cs_datecleaned_20190510.csv"
@@ -389,14 +389,18 @@ q_18month_scored <-
   ungroup() 
 ```
 
+#Calculate alpha
 ```{r}
+itsea_alpha <-
 q_18month_scored %>% 
   select(
     itsea_intern,
     itsea_extern,
     itsea_negemo
-  ) %>% 
-  psych(alpha)
+  )
+
+psych::alpha(itsea_alpha)
+
 ```
 
 ## Calculate clinical cut scores
