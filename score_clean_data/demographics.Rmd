@@ -14,14 +14,15 @@ library(lubridate)
 # Files
 
 # Fran file paths
-demo_cs_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/demo_cs_20190131.csv"
-demo_mom_long_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/demo_long_preg_20190726.csv"
-demo_baby_long_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/demo_long_nb_20190726.csv"
-dob_cs_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/dob_cs_20190131.csv"
-dob_long_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/dob_long_20190726.csv"
-visit_date_cs_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/visit_date_cs_20190131.csv"
-visit_date_long_6mo_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/visit_date_long_6mo_20190726.csv"
-visit_dates_long_t1t2_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/long_t1t2_dates_20190726.csv"
+demo_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_cs_20190131.csv"
+demo_mom_long_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_preg_20190726.csv"
+demo_baby_long_file <- "~/Desktop/lena_18mo_symptoms/Data/demo_long_nb_20190726.csv"
+dob_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/dob_cs_20190131.csv"
+dob_long_file <- "~/Desktop/lena_18mo_symptoms/Data/dob_long_20190726.csv"
+visit_date_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_cs_20190131.csv"
+visit_date_long_6mo_file <- "~/Desktop/lena_18mo_symptoms/Data/visit_date_long_6mo_20190726.csv"
+visit_dates_long_t1t2_file <- "~/Desktop/lena_18mo_symptoms/Data/long_t1t2_dates_20190726.csv"
+t1s1_date_file <- "~/Desktop/lena_18mo_symptoms/Data/t1s1_date.csv"
 
 # Lucy file paths
 # demo_cs_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/demo_cs_20190131.csv"
@@ -34,11 +35,25 @@ visit_dates_long_t1t2_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/long_t1t2
 # visit_dates_long_t1t2_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/long_t1t2_dates_20190510.csv"
 
 # Functions
-source("identify_outliers_histogram.R")
+#source("identify_outliers_histogram.R")
 ```
 
 # Read in and join data 
 ```{r}
+read_csv(dob_long_file) %>% 
+      select(
+        ID = record_id,
+        mom_dob,
+        baby_dob,
+        baby_due_date
+      ) %>% 
+      mutate(
+        ID = as.integer(ID),
+        mom_dob = as.Date(mom_dob, "%m/%d/%y"),
+        baby_dob = as.Date(baby_dob, "%m/%d/%y"),
+        baby_due_date = as.Date(baby_due_date, "%m/%d/%y")
+      )
+
 dates <-
   read_csv(dob_cs_file) %>% 
   select(
@@ -102,22 +117,10 @@ dates <-
     mom_age_preg_visit = (mom_dob %--% date_preg) / years(1),
     mom_age_newborn_visit = (mom_dob %--% date_newborn) / years(1),
     mom_age_babydob = (mom_dob %--% baby_dob) / years(1),
-    baby_age_newborn_visit = (baby_dob %--% date_newborn) / months(1)
+    baby_age_newborn_visit = (baby_dob %--% date_newborn) / months(1),
+    weeks_gestation_preg_visit = (baby_conception_date %--% date_preg) / weeks(1)
   )
 
-read_csv(dob_long_file) %>% 
-      select(
-        ID = record_id,
-        mom_dob,
-        baby_dob,
-        baby_due_date
-      ) %>% 
-      mutate(
-        ID = as.integer(ID),
-        mom_dob = as.Date(mom_dob, "%m/%d/%y"),
-        baby_dob = as.Date(baby_dob, "%m/%d/%y"),
-        baby_due_date = as.Date(baby_due_date, "%m/%d/%y")
-      )
 ```
 #continue joining data, calculate income-to-needs
 ```{r}
@@ -236,7 +239,7 @@ demo_2 <-
 
 demo <-
     dates %>% 
-      select(ID, contains("age"), baby_dob)
+      select(ID, contains("age"), baby_dob, weeks_gestation_preg_visit)
 
 
 demo <-
@@ -246,7 +249,7 @@ demo <-
   ) %>% 
   filter(!is.na(ID))
 
-write_csv(demo, "~/Desktop/lena_18mo_symptoms/Data_Final/demographics_20190726.csv")
+write_csv(demo, "~/Desktop/lena_18mo_symptoms/Data/demographics_20190726.csv")
 ```
 
 # Distributions
