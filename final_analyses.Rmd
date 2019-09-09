@@ -79,7 +79,8 @@ d0 <-
         mom_ethnicity,
         child_race,
         childrace_describe,
-        child_ethnicity
+        child_ethnicity,
+        weeks_gestation_preg_visit
       ),
     by = "ID"
   ) %>% 
@@ -91,6 +92,10 @@ d0 <-
         NEG
       ),
     by = "ID"
+  ) %>% 
+  mutate(
+    day_type = as.factor(day_type),
+    male = as.factor(male)
   ) %>% 
   left_join(
     read_csv(sfp_care_file) %>% 
@@ -122,6 +127,34 @@ d0 <-
 ```
 
 # Descriptive statistics 
+
+## Retention
+```{r}
+#get IDs for retention record document
+d0_IDs <-
+  d0 %>% 
+  select(
+    ID
+  )
+
+write_csv(d0_IDs, "~/Desktop/BABIES/lena_symptoms/data_final/lena_IDs.csv")
+
+#find n not included due to missing toddler assessment
+d0 %>% 
+  count(!is.na(awc_daily_rate), is.na(itsea_symptoms))
+
+#select IDs with missing toddler assessment, or toddler age outside eligibility, for retention record document
+d0_noitsea <-
+  d0 %>% 
+  filter(!is.na(awc_daily_rate), is.na(itsea_symptoms))
+
+d0_toddler_too_old <-
+  d0 %>% 
+  filter(baby_age_18month > 21)
+
+write_csv(d0_noitsea, "~/Desktop/BABIES/lena_symptoms/data_final/IDs_missing_itsea.csv")
+```
+
 
 ## Missing data 
 ```{r}
@@ -188,11 +221,13 @@ d0_d1 %>%
       duration,
       mom_age_6mo_visit,
       income_needs,
-      percent_mother
+      percent_mother,
+      weeks_gestation_preg_session
     ), 
     list(~mean, ~sd, ~min, ~max), na.rm = TRUE)
-```
 
+```
+range preg weeks gestation: 16.71 - 34.71428571
 
 Race:
 1, American Indian or Alaska Native
