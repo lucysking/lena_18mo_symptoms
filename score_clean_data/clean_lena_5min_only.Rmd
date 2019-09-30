@@ -34,6 +34,25 @@ lena_5min_files_df <-
   filter(
     str_detect(path, "/.DS_Store") == FALSE
   )
+
+
+# Functions
+source("~/Desktop/BABIES/lena_symptoms/lena_18mo_symptoms/identify_outliers_histogram.R")
+source("~/Desktop/BABIES/lena_symptoms/lena_18mo_symptoms/winsorize.R")
+
+
+# Themes
+theme_lena <-
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(size = 18, hjust = .5),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 18), 
+    legend.text = element_text(size = 16),
+    legend.position = "bottom"
+  )
 ```
 
 # Read in and reformat 5 minute data from LENA SP 
@@ -199,54 +218,18 @@ lena_5min <-
   )
 ```
 
-## Calculate CTC based on time of day
+## Create long-form data frame with time variables
 ```{r}
 lena_time <- 
   lena_5min %>% 
   group_by(ID) %>% 
   mutate(
     time_hours = hour(time_record) + minute(time_record) / 60,
-    time_day = case_when(
-      time_hours >=5 & time_hours <= 10 ~ "AM",
-      time_hours >= 10 & time_hours <13 ~ "MID",
-      time_hours >= 13 & time_hours <17 ~ "AFT",
-      time_hours >= 17 & time_hours < 22 ~ "PM"
-    ), 
     duration = as.numeric(
       as.duration(hms(as.numeric(Duration))),
       "hours"
     )
   ) 
-
-lena_time_day <- 
-  lena_time %>% 
-  group_by(ID, date_record, time_day, age) %>% 
-  summarise(
-    duration_time_day = sum(duration),
-    ctc_time_day = sum(CTC.Actual)
-  ) %>% 
-  filter(!is.na(time_day)) %>% 
-  group_by(ID) %>% 
-  mutate(
-    ctc_time_rate = ctc_time_day / duration_time_day
-  ) 
-
-lena_time %>% 
-  ggplot(aes(time_hours, CTC.Actual)) +
-  geom_jitter(alpha = 1/6, aes(color = time_day)) +
-  geom_smooth(color = "black") +
-  scale_x_continuous(breaks = seq.int(0, 24, 2)) +
-  scale_y_continuous(breaks = seq.int(0, 35, 5)) +
-  theme_lena +
-  theme(
-    legend.position = "none"
-  ) +
-  labs(
-    x = "Time of day\n(hours since midnight)",
-    y = "Conversational turn count"
-  )
-
-ggsave("~/Desktop/BABIES/lena_symptoms/manuscript/ctc_time.png")
 ```
 
 # Clean and wrangle 5-minute data 
@@ -282,17 +265,13 @@ lena_5min_cl <-
     awc_prop = (awc_depend_sum) / ((duration * 60) / 5), #proportion of 5 minute segments with AWC
     ctc_prop = (ctc_depend_sum) / ((duration * 60) / 5), #proportion of 5 minute segments with CTC 
     cvc_prop = (cvc_depend_sum) / ((duration * 60) / 5)
-  ) 
+  ) %>% 
+  ungroup()
 ```
 
 ```{r}
 lena_5min_cl <-
-  lena_time_day %>% 
-  left_join(lena_5min_cl, by = c("ID", "age", "date_record")) %>% 
-  filter(
-    (age >= 5 & age <= 8),
-    duration >= 8
-  ) %>% 
+  lena_5min_cl %>% 
   group_by(ID) %>% 
   mutate(
     day_type = wday(date_record),
@@ -300,6 +279,37 @@ lena_5min_cl <-
     day = 1:n()
   ) %>% 
   ungroup()
+```
+
+```{r}
+# identify who will be dropped
+
+## based on age
+lena_5min_cl %>%
+  filter(day == 1) %>% 
+  count(age > 8)
+
+lena_5min_cl %>%
+  filter(day == 1 & age > 8)
+
+## based on duration
+lena_5min_cl %>%
+  filter(day == 1) %>% 
+  count(duration < 8)
+
+lena_5min_cl %>%
+  filter(day == 1 & duration < 8)
+
+# ID 012 did not end up being dropped because day 2 was usable 
+```
+
+```{r}
+lena_5min_cl <-
+  lena_5min_cl %>% 
+  filter(
+    (age >= 5 & age <= 8),
+    duration >= 8
+  ) 
 ```
 
 # Create wideform data frame with 1 row per ID
@@ -325,7 +335,7 @@ lena_5min_day2_rename <-
 lena_5min_cl_wf <-
   lena_5min_day1_rename %>% 
   left_join(lena_5min_day2_rename, by = "ID") %>% 
-  distinct(ID, date_record_D1, ctc_time_rate_D1, .keep_all = TRUE) %>% 
+  distinct(ID, date_record_D1, ctc_daily_rate_D1, .keep_all = TRUE) %>% 
   group_by(ID) %>% 
   mutate(
     ctc_max_D1D2 = max(ctc_max_D1, ctc_max_D2, na.rm = TRUE)
@@ -420,19 +430,25 @@ lena_followup <-
 t.test(percent_mother ~ lena_weekend, data = lena_followup)
 ```
 
-#Filter data for use in lena_18mo_symptoms project analyses
 ```{r}
 #IDs to use day 2: 
-# day 1: 110 (put device in pocket rather than chest day 1), 106
+# day 1: 110 (put device in pocket rather than chest day 1)
 
 lena_5min_cl <-
   lena_5min_cl %>%
-  filter(
-    ID != 110
-  ) 
+  mutate(
+    day = if_else(
+      ID == 110 & day == 1,
+      NA_integer_, day
+    ),
+    day = if_else(
+      ID == 110 & day == 2,
+      as.integer(1), day
+    )
+  )
 ```
 
-### Merge relevant follow up qs data with cleaned & filtered lena data 
+## Merge relevant follow up qs data with cleaned & filtered lena data 
 ```{r}
 lena_5min_cl <-
   lena_5min_cl %>% 
@@ -459,49 +475,18 @@ lena_followup_and_data <-
         date_record = parse_date_time(date_record, c("ymd", "mdy"))
       ), 
     by = c("ID", "date_record")
-  ) %>% 
-  mutate(
-    day = if_else(
-      day < 5,
-      1, 2
-    )
-  )
+  ) 
+
 ```
 
-## Filter to only day 1 day
+## Filter to only day 1 data
 ```{r}
 lena_d1 <- 
   lena_followup_and_data %>% 
-  filter(day == 1) %>% 
-  # these IDs are missing a time segment on day 1 therefore 1 of the time segments on day 2 was counted
-  filter(
-    !(ID == 1033 & date_record == ymd("2018-03-27")) ,
-    !(ID == 1045 & date_record == ymd("2018-05-19")),
-    !(ID == 1029 & date_record == ymd("2018-05-12"))
-  )
-
-lena_time_wf <- 
-  lena_d1 %>%
-  select(
-    ID,
-    time_day,
-    ctc_time_rate
-  ) %>% 
-  arrange(ID, time_day) %>% 
-  group_by(ID) %>% 
-  mutate(
-    ctc_ssd = mssd(ctc_time_rate)
-  ) %>% 
-  spread(time_day, ctc_time_rate, sep = "_")
-
-lena_d1 <-
-  lena_d1 %>% 
-  distinct(ID, ctc_daily_rate, .keep_all = TRUE) %>% 
-  left_join(lena_time_wf, by = "ID") %>% 
-  select(-time_day)
+  filter(day == 1) 
 ```
 
-## Clean LENA time data frame
+## Clean LENA time data 
 ```{r}
 ids_dates <-
   lena_d1 %>% 
@@ -520,7 +505,145 @@ lena_time_cl <-
   filter(included == 1)
 ```
 
-##Write file with relevant data 
+## Identify value and times of first and last CT and AW of the day
+```{r}
+lena_time_cl <-
+  lena_time_cl %>% 
+  arrange(ID, time_hours) %>% 
+  group_by(ID) %>% 
+  mutate(
+    # first ct
+    ct_first_row = head(which(CTC.Actual != 0), 1),
+    ct_first = nth(CTC.Actual, n = ct_first_row[1]),
+    ct_first_time = nth(time_hours, n = ct_first_row[1]),
+    # last ct
+    ct_last_row = tail(which(CTC.Actual != 0), 1),
+    ct_last = nth(CTC.Actual, n = ct_last_row[1]),
+    ct_last_time = nth(time_hours, n = ct_last_row[1]),
+    # first aw
+    aw_first_row = head(which(AWC.Actual != 0), 1),
+    aw_first = nth(AWC.Actual, n = aw_first_row[1]),
+    aw_first_time = nth(time_hours, n = aw_first_row[1]),
+    # last aw
+    aw_last_row = tail(which(AWC.Actual != 0), 1),
+    aw_last = nth(AWC.Actual, n = aw_last_row[1]),
+    aw_last_time = nth(time_hours, n = aw_last_row[1]),
+    # create grouping variable for time of day 
+    time_day = case_when(
+      time_hours >= ct_first_time & time_hours <= 10 ~ "CT_AM",
+      time_hours >= 10 & time_hours < 13 ~ "CT_MID",
+      time_hours >= 13 & time_hours < 17 ~ "CT_AFT",
+      time_hours >= 17 & time_hours < ct_last_time ~ "CT_PM"
+    )
+  ) %>% 
+  select(-ct_last_row, -aw_last_row, -ct_first_row, -aw_first_row) 
+```
+
+``` {r}
+# calculate CT rate during each phase of day 
+lena_time_day <- 
+  lena_time_cl %>% 
+  group_by(ID, date_record, time_day, age) %>% 
+  summarise(
+    duration_time_day = sum(duration),
+    ctc_time_day = sum(CTC.Actual)
+  ) %>% 
+  filter(!is.na(time_day)) %>% 
+  group_by(ID) %>% 
+  mutate(
+    ctc_time_rate = ctc_time_day / duration_time_day
+  ) %>% 
+  # these IDs are missing a time segment on day 1 therefore 1 of the time segments on day 2 was counted
+  filter(
+    !(ID == 1033 & date_record == ymd("2018-03-27")) ,
+    !(ID == 1045 & date_record == ymd("2018-05-19")),
+    !(ID == 1029 & date_record == ymd("2018-05-12"))
+  )
+
+lena_time_wf <- 
+  lena_time_day %>%
+  select(
+    ID,
+    time_day,
+    ctc_time_rate
+  ) %>% 
+  spread(time_day, ctc_time_rate, sep = "_")
+
+```
+
+
+## Merge time data 
+```{r}
+lena_d1 <-
+  lena_d1 %>% 
+  distinct(ID, ctc_daily_rate, .keep_all = TRUE) %>% 
+  left_join(lena_time_wf, by = "ID") 
+```
+
+
+## Histograms
+```{r}
+identify_outliers_hist(lena_d1, ctc_daily_rate)
+identify_outliers_hist(lena_d1, awc_daily_rate)
+identify_outliers_hist(lena_d1, ctc_prop)
+identify_outliers_hist(lena_d1, awc_prop)
+identify_outliers_hist(lena_d1, time_day_AM)
+identify_outliers_hist(lena_d1, time_day_MID)
+identify_outliers_hist(lena_d1, time_day_AFT)
+identify_outliers_hist(lena_d1, time_day_PM)
+```
+
+```{r}
+# join first and last variables with day 1 LENA data 
+lena_d1 <-
+  lena_d1 %>% 
+  left_join(
+    lena_time_cl %>% 
+      select(
+        ID, 
+        ct_last, 
+        ct_last_time, 
+        aw_last, 
+        aw_last_time,
+        ct_first,
+        ct_first_time,
+        aw_first,
+        aw_first_time
+        ) %>% 
+      distinct(ID, ct_last, .keep_all = TRUE),
+    by = "ID"
+  ) 
+```
+
+## Histograms
+```{r}
+lena_time_cl %>% 
+  ggplot(aes(time_hours, CTC.Actual)) +
+  geom_jitter(alpha = 1/6, aes(color = time_day)) +
+  geom_smooth(color = "black") +
+  scale_x_continuous(breaks = seq.int(0, 24, 2)) +
+  scale_y_continuous(breaks = seq.int(0, 35, 5)) +
+  theme_lena +
+  theme(
+    legend.position = "none"
+  ) +
+  labs(
+    x = "Time of day\n(hours since midnight)",
+    y = "Conversational turn count"
+  )
+
+ggsave("~/Desktop/BABIES/lena_symptoms/manuscript/ctc_time_d1.png")
+```
+
+```{r}
+missing_lena_ages <- 
+  lena_5min %>% 
+  left_join(ids_dates, by = c("ID", "date_record")) %>% 
+  filter(is.na(included)) %>% 
+  distinct(ID, age)
+```
+
+## Write file 
 
 ```{r}
 write_csv(lena_d1, "~/Desktop/BABIES/lena_symptoms/data_final/lena_d1_20190904.csv")

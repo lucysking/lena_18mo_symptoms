@@ -12,15 +12,18 @@ library(Hmisc)
 library(car)
 library(corrr)
 library(corrplot)
-library(nlme)
 library(ggpubr)
 library(modelr)
 library(gvlma)
 library(sjstats)
 library(glmpath)
+library(glmnet)
+library(lme4)
+library(lmerTest)
 library(pwr)
 
 # Files 
+eligible_id_file <- "~/Desktop/BABIES/lena_symptoms/data_final/eligible_IDs.csv"
 fp_intervention_id <- "~/Desktop/BABIES/lena_symptoms/data_final/ID_group_assignment.xlsx"
 q_18mo_file <- "~/Desktop/BABIES/lena_symptoms/data_final/q_18month_scores_20190726.csv"
 q_18mo_ages_file <- "~/Desktop/BABIES/lena_symptoms/data_final/q_18month_ages.csv"
@@ -53,19 +56,8 @@ theme_lena <-
 # Read in and join data
 ```{r}
 d0 <-
-  read_csv(lena_file) %>% 
-  left_join(
-    read_csv(q_18mo_file) %>% 
-      dplyr::select(
-        ID, 
-        itsea_symptoms,
-        itsea_intern,
-        itsea_extern,
-        itsea_concern_ied,
-        baby_age_18month
-      ), 
-    by = "ID"
-  ) %>% 
+  read_csv(eligible_id_file) %>% 
+  mutate(ID = as.numeric(ID)) %>% 
   left_join(
     read_csv(demographics_file) %>% 
       dplyr::select(
@@ -74,6 +66,7 @@ d0 <-
         annual_income,
         income_needs,
         male,
+        baby_age_6mo_visit = baby_age_6mo_vsit,
         mom_age_6mo_visit,
         mom_race,
         mom_ethnicity,
@@ -83,19 +76,6 @@ d0 <-
         weeks_gestation_preg_visit
       ),
     by = "ID"
-  ) %>% 
-  left_join(
-    read_csv(ibq_file) %>% 
-      dplyr::select(
-        ID,
-        SUR,
-        NEG
-      ),
-    by = "ID"
-  ) %>% 
-  mutate(
-    day_type = as.factor(day_type),
-    male = as.factor(male)
   ) %>% 
   left_join(
     read_csv(sfp_care_file) %>% 
@@ -109,12 +89,37 @@ d0 <-
     read_csv(fp_care_file) %>% 
       dplyr::select(
         ID,
-        posmood_fp = posmood_fin, 
-        negmood_fp = negmood_fin,
-        stim_fp = stim_fin, 
         sens_fp = sens_fin
       ),
     by = "ID"
+  ) %>% 
+  left_join(
+    read_csv(q_18mo_file) %>% 
+      dplyr::select(
+        ID, 
+        itsea_symptoms,
+        itsea_intern,
+        itsea_extern,
+        itsea_concern_ied,
+        baby_age_18month
+      ),
+    by = "ID"
+  ) %>% 
+  left_join(
+    read_csv(ibq_file) %>% 
+      dplyr::select(
+        ID,
+        NEG
+      ),
+    by = "ID"
+  ) %>% 
+  left_join(
+    read_csv(lena_file),
+    by = "ID"
+  )  %>% 
+  mutate(
+    day_type = as.factor(day_type),
+    male = as.factor(male)
   ) %>% 
   left_join(
     readxl::read_xlsx(fp_intervention_id),
@@ -122,66 +127,47 @@ d0 <-
   ) %>% 
   mutate(
     day_type = as.factor(day_type),
-    male = as.factor(male)
+    male = as.factor(male),
+    mom_ethnicity = as.factor(mom_ethnicity),
+    baby_age = if_else(
+      is.na(baby_age_lena),
+      baby_age_6mo_visit, baby_age_lena
+    )
   ) 
+
+
 ```
 
 # Descriptive statistics 
 
-## Retention
+## Retention / Missing data
+
+Dyads who completed the 6-month assessment (either lab or home observation), were eligible for the 18-month assesment, and complete the 18-month assessment are incldued in the current analyses. 
+
 ```{r}
-#get IDs for retention record document
-d0_IDs <-
-  d0 %>% 
-  select(
-    ID
-  )
-
-write_csv(d0_IDs, "~/Desktop/BABIES/lena_symptoms/data_final/lena_IDs.csv")
-
-#find n not included due to missing toddler assessment
-d0 %>% 
-  count(!is.na(awc_daily_rate), is.na(itsea_symptoms))
-
-#select IDs with missing toddler assessment, or toddler age outside eligibility, for retention record document
-d0_noitsea <-
-  d0 %>% 
-  filter(!is.na(awc_daily_rate), is.na(itsea_symptoms))
-
-d0_toddler_too_old <-
-  d0 %>% 
-  filter(baby_age_18month > 21)
-
-write_csv(d0_noitsea, "~/Desktop/BABIES/lena_symptoms/data_final/IDs_missing_itsea.csv")
-```
-
-
-## Missing data 
-```{r}
-d0 %>% 
-  count(!is.na(awc_daily_rate))
-
-d0 %>% 
-  count(!is.na(awc_daily_rate), !is.na(itsea_symptoms), baby_age_18month <= 21)
-
 d0_d1 <-
   d0 %>% 
-  filter(!is.na(awc_daily_rate), !is.na(itsea_symptoms) & baby_age_18month <= 21)
+  filter(
+    !is.na(itsea_symptoms), baby_age_18month <= 21
+  )
 
+#missing LENA
+d0_d1 %>% 
+  count(is.na(ctc_daily_rate))
+
+#missing SFP
+d0_d1 %>% 
+  count(is.na(sens_sfp))
+
+#missing FP
+d0_d1 %>% 
+  count(is.na(sens_fp))
+
+```
+
+```{r}
 d0_d1 %>% 
   count(!is.na(NEG))
-
-d0_d1 %>% 
-  count(!is.na(sens_sfp))
-
-d0_d1 %>% 
-  filter(is.na(sens_sfp))
-
-d0_d1 %>% 
-  count(!is.na(sens_fp))
-
-d0_d1 %>% 
-  filter(is.na(sens_fp))
 
 d0_d1 %>% 
   count(!is.na(intervention_group))
@@ -199,7 +185,7 @@ Missing sensitivity from FP:
 
 ## Power
 ```{r}
-pwr.f2.test(u = 1, v = 67, f2 = .12, sig.level = .05)
+pwr.f2.test(u = 1, v = 69, f2 = .12, sig.level = .05)
 ```
 
 ## Descriptive statistics 
@@ -222,7 +208,7 @@ d0_d1 %>%
       mom_age_6mo_visit,
       income_needs,
       percent_mother,
-      weeks_gestation_preg_session
+      weeks_gestation_preg_visit
     ), 
     list(~mean, ~sd, ~min, ~max), na.rm = TRUE)
 
@@ -259,6 +245,13 @@ Income:
 7, Greater than $150,000
 ```{r}
 d0_d1 %>% 
+  count(male) %>% 
+  mutate(
+    per = n / sum(n)
+  )
+
+d0_d1 %>% 
+  filter(!is.na(duration)) %>% 
   count(duration >= 12) %>% 
   mutate(
     per = n / sum(n)
@@ -288,6 +281,13 @@ d0_d1 %>%
     per = n / sum(n)
   ) %>% 
   arrange(desc(n))
+
+d0_d1 %>% 
+  count(education) %>% 
+  mutate(
+    per = n / sum(n)
+  ) %>% 
+  arrange(education)
 
 d0_d1 %>% 
   count(education) %>% 
@@ -327,13 +327,14 @@ d0_d1 %>%
   identify_outliers_hist(x = itsea_symptoms)
 ```
 
+
 ## Correlations
 ```{r}
 correlation_table <- 
   d0_d1 %>% 
   dplyr::select(
     mom_age_6mo_visit,
-    baby_age_lena,
+    baby_age,
     baby_age_18month,
     income_needs,
     NEG,
@@ -351,7 +352,7 @@ correlation_table <-
 
 write_csv(
    correlation_table,
-   "~/Desktop/BABIES/lena_symptoms/manuscript/correlation_table_20190830.csv"
+   "~/Desktop/BABIES/lena_symptoms/manuscript/correlation_table_20190913.csv"
  )
 
 cor.test(d0_d1$income_needs, d0_d1$duration)
@@ -391,9 +392,11 @@ t.test(d0_d1$ctc_prop ~ d0_d1$day_type)
 d0_d1 <-
   d0_d1 %>% 
   mutate(
-    white = if_else(
-      mom_race == 5, 
-      1, 0
+    white = as.factor(
+      if_else(
+        mom_race == 5, 
+        1, 0
+      )
     )
   )
 
@@ -424,8 +427,9 @@ t.test(d0_d1$sens_sfp ~ d0_d1$mom_ethnicity)
 ### Effect code categorical variables
 
 ```{r}
-contrasts(d0_d1$day_type) = c(-1, 1)
-contrasts(d0_d1$male) = c(-1, 1)
+contrasts(d0_d1$male) <- c(-1, 1)
+contrasts(d0_d1$white) <- c(-1, 1)
+contrasts(d0_d1$mom_ethnicity) <- c(-1, 1)
 ```
 
 ### Formal model fitting 
@@ -435,26 +439,31 @@ symp <-
     itsea_symptoms ~ 1,
     data = d0_d1
   )
-
-# baby age at lena
-symp_babyage <-
-  lm(
-    itsea_symptoms ~ 
-      scale(baby_age_lena, scale = FALSE),
-    data = d0_d1
-  )
-anova(symp, symp_babyage)
 ```
+
+
 ```{r}
 # mom age at lena
 symp_momage <-
   lm(
     itsea_symptoms ~ 
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE),
     data = d0_d1
   )
-anova(symp_babyage, symp_momage)
+anova(symp, symp_momage)
+```
+
+```{r}
+# baby age at lena
+symp_babyage <-
+  lm(
+    itsea_symptoms ~ 
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(baby_age, scale = FALSE),
+    data = d0_d1
+  )
+summary(symp_babyage)
+anova(symp_momage, symp_babyage)
 ```
 
 ```{r}
@@ -462,7 +471,6 @@ anova(symp_babyage, symp_momage)
 symp_sex <-
   lm(
     itsea_symptoms ~ 
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
       male,
     data = d0_d1
@@ -471,6 +479,7 @@ anova(symp_momage, symp_sex)
 ```
 
 ```{r}
+# negative affectivity
 d0_d1_temperament <- 
   d0_d1 %>% 
   filter(!is.na(NEG))
@@ -478,16 +487,16 @@ d0_d1_temperament <-
 symp_momage_NEG <-
   lm(
     itsea_symptoms ~ 
-      scale(baby_age_lena, scale = FALSE) + 
-      scale(mom_age_6mo_visit, scale = FALSE),
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(baby_age, scale = FALSE),
     data = d0_d1_temperament
   )
 
 symp_NEG <-
   lm(
     itsea_symptoms ~ 
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(baby_age, scale = FALSE) +
       scale(NEG, scale = FALSE),
     data = d0_d1_temperament
   )
@@ -496,23 +505,106 @@ anova(symp_momage_NEG, symp_NEG)
 ```
 
 ```{r}
+#income-to-needs 
+d0_d1_inr <- 
+  d0_d1 %>% 
+  filter(!is.na(income_needs))
+
+symp_momage_NEG_inr <-
+  lm(
+    itsea_symptoms ~ 
+    scale(mom_age_6mo_visit, scale = FALSE) +
+    scale(baby_age, scale = FALSE) +
+    scale(NEG, scale = FALSE),
+    data = d0_d1_inr
+  )
+
+symp_inr <-
+  lm(
+    itsea_symptoms ~ 
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE) +
+      scale(income_needs, scale = FALSE),
+    data = d0_d1_inr
+  )
+
+anova(symp_momage_NEG_inr, symp_inr)
+```
+
+```{r}
+# Hispanic ethnicity
+d0_d1_ethnicity <- 
+  d0_d1 %>% 
+  filter(!is.na(mom_ethnicity))
+
+symp_momage_NEG_ethn <-
+  lm(
+    itsea_symptoms ~ 
+    scale(mom_age_6mo_visit, scale = FALSE) +
+    scale(baby_age, scale = FALSE) +
+    scale(NEG, scale = FALSE),
+    data = d0_d1_ethnicity
+  )
+
+symp_ethn <-
+  lm(
+    itsea_symptoms ~ 
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE) +
+      mom_ethnicity,
+    data = d0_d1_ethnicity
+  )
+
+anova(symp_momage_NEG_ethn, symp_ethn)
+```
+
+```{r}
+# White vs. not White 
+d0_d1_race <- 
+  d0_d1 %>% 
+  filter(!is.na(white))
+
+symp_momage_NEG_race <-
+  lm(
+    itsea_symptoms ~ 
+    scale(mom_age_6mo_visit, scale = FALSE) +
+    scale(baby_age, scale = FALSE) +
+    scale(NEG, scale = FALSE),
+    data = d0_d1_race
+  )
+
+symp_race <-
+  lm(
+    itsea_symptoms ~ 
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE) +
+      white,
+    data = d0_d1_race
+  )
+
+anova(symp_momage_NEG_race, symp_race)
+```
+
+```{r}
 final_base_model <- 
   lm(
     itsea_symptoms ~ 
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
+      scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE),
     data = d0_d1 
   )
 summary(final_base_model)
 
-r.squared_base <- summary(final_base_model)$r.squared
+r.squared_base <- summary(final_base_model)$adj.r.squared
 
 #save residuals
 d0_d1 <-
   d0_d1 %>% 
   add_residuals(final_base_model, "resid_symp")
-
 ```
 
 ### Main effect of AWC consistency
@@ -522,16 +614,16 @@ sym_awc_prop <-
   lm(
     itsea_symptoms ~ 
       scale(awc_prop, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
+      scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE),
     data = d0_d1 
   )
 summary(sym_awc_prop)
 
 std_beta(sym_awc_prop)
 
-r_chg_awcprop <- summary(sym_awc_prop)$r.squared - r.squared_base
+r_chg_awcprop <- summary(sym_awc_prop)$adj.r.squared - r.squared_base
 
 r_chg_awcprop
 
@@ -555,9 +647,9 @@ sym_awc_prop_sqrt <-
   lm(
     sqrt(itsea_symptoms) ~ 
       scale(awc_prop, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
+      scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE),
     data = d0_d1 
   )
 summary(sym_awc_prop_sqrt)
@@ -591,16 +683,16 @@ sym_ctc_prop <-
   lm(
     itsea_symptoms ~ 
       scale(ctc_prop, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
+      scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE),
     data = d0_d1 
   )
 summary(sym_ctc_prop)
 
 std_beta(sym_ctc_prop)
 
-r_chg_ctcprop <- summary(sym_ctc_prop)$r.squared - r.squared_base
+r_chg_ctcprop <- summary(sym_ctc_prop)$adj.r.squared - r.squared_base
 
 r_chg_ctcprop
 
@@ -624,9 +716,9 @@ sym_ctc_prop_sqrt <-
   lm(
     sqrt(itsea_symptoms) ~ 
       scale(ctc_prop, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
+      scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE),
     data = d0_d1 
   )
 summary(sym_ctc_prop_sqrt)
@@ -660,16 +752,16 @@ sym_awc_rate <-
   lm(
     itsea_symptoms ~ 
       scale(awc_daily_rate, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
+      scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE),
     data = d0_d1 
   )
 summary(sym_awc_rate)
 
 std_beta(sym_awc_rate)
 
-r_chg_awcrate <- summary(sym_awc_rate)$r.squared - r.squared_base
+r_chg_awcrate <- summary(sym_awc_rate)$adj.r.squared - r.squared_base
 
 r_chg_awcrate
 
@@ -693,9 +785,9 @@ sym_awc_rate_sqrt <-
   lm(
     sqrt(itsea_symptoms) ~ 
       scale(awc_daily_rate, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
+      scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE),
     data = d0_d1 
   )
 summary(sym_awc_rate_sqrt)
@@ -730,16 +822,16 @@ sym_ctc_rate <-
   lm(
     itsea_symptoms ~ 
       scale(ctc_daily_rate, scale = FALSE) + 
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
+      scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE),
     data = d0_d1 
   )
 summary(sym_ctc_rate)
 
 std_beta(sym_ctc_rate)
 
-r_chg_ctcrate <- summary(sym_ctc_rate)$r.squared - r.squared_base
+r_chg_ctcrate <- summary(sym_ctc_rate)$adj.r.squared - r.squared_base
 
 r_chg_ctcrate
 
@@ -763,12 +855,14 @@ sym_ctc_rate_sqrt <-
   lm(
     sqrt(itsea_symptoms) ~ 
       scale(ctc_daily_rate, scale = FALSE) +
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
+      scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE),
     data = d0_d1 
   )
 summary(sym_ctc_rate_sqrt)
+
+std_beta(sym_ctc_rate_sqrt)
 
 gvlma(sym_ctc_rate_sqrt) 
 ```
@@ -793,6 +887,7 @@ ggsave(
   
 ```
 
+
 # Effects of laboratory caregiving on ITSEA symptoms
 
 ## Sensitivity during play
@@ -800,18 +895,17 @@ ggsave(
 sym_fp <-
   lm(
     itsea_symptoms ~ 
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
       scale(NEG, scale = FALSE) +
-      scale(sens_fp, scale = FALSE) +
-      scale(ctc_prop, scale = FALSE),
+      scale(baby_age, scale = FALSE) +
+      scale(sens_fp, scale = FALSE),
     data = d0_d1 
   )
 summary(sym_fp)
 
 std_beta(sym_fp)
 
-r_chg_fp <- summary(sym_fp)$r.squared - r.squared_base
+r_chg_fp <- summary(sym_fp)$adj.r.squared - r.squared_base
 
 r_chg_fp
 
@@ -842,9 +936,9 @@ ggsave(
 sym_sfp <-
   lm(
     itsea_symptoms ~ 
-      scale(baby_age_lena, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
       scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE) +
       scale(sens_sfp, scale = FALSE),
     data = d0_d1 
   )
@@ -852,7 +946,7 @@ summary(sym_sfp)
 
 std_beta(sym_sfp)
 
-r_chg_sfp <- summary(sym_sfp)$r.squared - r.squared_base
+r_chg_sfp <- summary(sym_sfp)$adj.r.squared - r.squared_base
 
 r_chg_sfp
 
@@ -877,6 +971,67 @@ ggsave(
   height = 5
 )
 ```
+
+# Plot all caregiving measures in panels
+```{r}
+d0_d1 %>% 
+  select(
+    ctc_daily_rate,
+    ctc_prop,
+    awc_daily_rate,
+    awc_prop,
+    sens_sfp,
+    sens_fp,
+    resid_symp
+  ) %>% 
+  gather(measure, value, ctc_daily_rate:sens_fp) %>% 
+  mutate(
+    measure = factor(
+      measure,
+      levels = c(
+        "awc_prop",
+        "ctc_prop",
+        "awc_daily_rate",
+        "ctc_daily_rate",
+        "sens_sfp",
+        "sens_fp"
+      ),
+      labels = c(
+        "AW consistency", 
+        "CT consistency", 
+        "AW rate", 
+        "CT rate",
+        "Sensitivity to distress",
+        "Sensivity during play"
+        )
+    )
+  ) %>% 
+  ggplot(aes(value, resid_symp)) +
+  geom_point(size = 3, alpha = 1/2) +
+  geom_smooth(method = "lm", size = 2) +
+  facet_wrap(.~measure, scales = "free", ncol = 2, nrow = 3) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 18),
+    panel.grid = element_blank(),
+    plot.title = element_text(size = 18, hjust = .5),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.position = "none"
+  ) +
+  labs(
+    x = "Caregiving input value",
+    y = "Toddler symptoms of psychopathology\n(residuals)"
+  )
+
+
+ggsave(
+  "~/Desktop/BABIES/lena_symptoms/manuscript/care_ggpanels.png",
+  width = 6,
+  height = 8
+)
+```
+
 
 # Additional/follow-up analyses 
 
@@ -949,7 +1104,7 @@ lena_time %>%
 
 ```{r}
 d0_d1 %>% 
-  filter(time_day_PM < 70) %>% 
+  filter(time_day_PM < 90) %>% 
   select(
     resid_symp,
     time_day_AM:time_day_PM, time_day_AFT
@@ -963,14 +1118,18 @@ d0_d1 %>%
     )
   ) %>% 
   ggplot(aes(ctc_rate, resid_symp)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +
+  geom_point(size = 4, alpha = 1/2) +
+  geom_smooth(method = "lm", se = FALSE, size = 3) +
   facet_grid(.~time, scale = "free") +
   theme_minimal() +
   theme(
-    strip.text = element_text(size = 16),
-    axis.title = element_text(size = 16),
-    axis.text = element_text(size = 12)
+    strip.text = element_text(size = 18),
+    panel.grid = element_blank(),
+    plot.title = element_text(size = 18, hjust = .5),
+    axis.title = element_text(size = 18),
+    axis.text.x = element_text(size = 16, angle = 315),
+    axis.text.y = element_text(size = 13),
+    legend.position = "none"
   ) +
   labs(
     x = "Conversational turns per hour during infancy",
@@ -1012,9 +1171,42 @@ ctc_pm_r <- ctc_pm_r$estimate
 pm_day_r <- cor.test(d0_d1$time_day_PM, d0_d1$ctc_rate_day)
 pm_day_r <- pm_day_r$estimate
 
-r.test(n = 65, r12 = ctc_day_r, r13 = ctc_pm_r, r23 = pm_day_r)
+r.test(n = 71, r12 = ctc_day_r, r13 = ctc_pm_r, r23 = pm_day_r)
+
 ```
 
+### Effects of time of last CT
+```{r}
+sym_lastct <-
+  lm(
+    itsea_symptoms ~ 
+      scale(baby_age_lena, scale = FALSE) + 
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(NEG, scale = FALSE) +
+      scale(ct_last_time, scale = FALSE),
+    data = d0_d1 
+  )
+summary(sym_lastct)
+```
+
+```{r}
+d0 <-
+  d0 %>% 
+  left_join(bcq_sleep %>% select(ID, bcq_sleep), by = "ID")
+
+sym_lastct <-
+  lm(
+    itsea_symptoms ~ 
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(NEG, scale = FALSE) +
+      scale(baby_age, scale = FALSE) +,
+      scale(bcq_structure, scale = FALSE),
+    data = d0_d1 
+  )
+summary(sym_lastct)
+
+cor.test(d0$bcq_structure, d0$resid_symp)
+```
 
 ##Regularized regression
 We have observations on n units of a DV and p predictors, where p >> n.  (In typical regressions, n ≈ 10*p > p.)  In principle, using any n of the p predictors allows us to ‘predict’ the n DV values perfectly.  However, prediction of new observations is likely to be ‘poor’.  This problem is ill-conditioned.  The data set (or system) is said to be over-determined.
@@ -1030,8 +1222,7 @@ d0_rr <-
   d0_d1 %>% 
   select(
     resid_symp,
-    ctc_rate_day,
-    time_day_PM,
+    ctc_daily_rate,
     awc_daily_rate,
     ctc_prop,
     awc_prop,
@@ -1048,19 +1239,21 @@ z_score <- function(x) {
   diff_mu / sd
 }
 
-predictors <- scale(d0_rr[3:9], scale = TRUE)
+predictors <- scale(d0_rr[2:7], scale = TRUE)
 
 symptoms <- z_score(d0_rr$resid_symp)
 ```
 
 ##Fit glmnet model for income ROIs in boys
 ```{r}
-fit <- glmpath(predictors, symptoms, family = "gaussian")
+library(glmnet)
+fit_net <- glmnet(predictors, symptoms, alpha = .5, family = "gaussian")
+fit_path <- glmpath(predictors, symptoms, family = "gaussian")
 ```
 
 ```{r}
-print(fit)
-summary(fit)
+print(fit_path)
+summary(fit_path)
 ```
 
 
@@ -1068,21 +1261,31 @@ summary(fit)
 library(directlabels)
 
 d_predictor <- 
-  fit$b.predictor %>% # extract the coefficient estimates
+  fit_path$b.predictor %>% # extract the coefficient estimates
   data.frame() %>% # turn them into a dataframe
   rownames_to_column(var = "step") %>% # add the rownames as a "step" variable
   mutate(
-    lambda = fit$lambda, # add the lambda values for each step
-    aic = fit$aic, # add AIC for each step
-    bic = fit$bic,
-    deviance = fit$deviance
+    lambda = fit_path$lambda, # add the lambda values for each step
+    aic = fit_path$aic, # add AIC for each step
+    bic = fit_path$bic,
+    deviance = fit_path$deviance
   ) %>% # add BIC for each step
-  gather(predictor, coeff, ctc_rate_day:sens_sfp) %>% # turn into longform
+  rename(
+    `AW rate` = awc_daily_rate, 
+    `CT rate` = ctc_daily_rate,
+    `CT consistency` = ctc_prop,
+    `AW consistency` = awc_prop,
+    `Play sensitivity` = sens_fp,
+    `Distress sensitivity` = sens_sfp
+  ) %>% 
+  gather(predictor, coeff, `CT rate`:`Distress sensitivity`) %>% # turn into longform 
   arrange(step, predictor) # arrange by step number and selfrating
 
-ggplot(data = d_predictor, aes(x = lambda, y = coeff, color = predictor)) +
+
+
+ggplot(data = d_predictor, aes(x = lambda, y = coeff, color = predictor, fill = predictor)) +
   geom_point() +
-  geom_smooth(method = "loess", alpha = 0) +
+  geom_smooth(method = "loess", se = FALSE, size = .5) +
   theme_bw() +
   theme(
     text = element_text(size = 20),
@@ -1102,6 +1305,7 @@ ggplot(data = d_predictor, aes(x = deviance, y = coeff, color = predictor)) +
   geom_dl(aes(label = predictor), method = list("first.qp", cex = 1)) +
   xlim(40, max(d_predictor$deviance))
 
+d_predictor
 ```
 
 ```{r}
