@@ -253,35 +253,19 @@ fp_final_wf <-
     list(~mean), na.rm = TRUE
   )
 
-write_csv(fp_final_wf, "~/Desktop/BABIES/lena_symptoms/data_final/free_play_wf_20190830.csv")
+write_csv(fp_final_wf, "~/Desktop/BABIES/lena_symptoms/data_final/free_play_wf_20191014.csv")
 ```
-
-# Internal consistency across the five 2-minute intervals
 
 ```{r}
-fp_final_alpha <-
-  fp_final %>% 
-  gather(measure, value, sens_fin:detach_fin) %>% 
-  unite(new, measure, episode) %>% 
-  distinct(ID, new, value) %>% 
-  spread(new, value)
+fp_final_wf %>% 
+  ggplot(aes(negmood_fin)) +
+  geom_histogram() +
+  theme_lena +
+  labs(
+    x = "Infant negative moood during play"
+  )
+
+ggsave("~/Desktop/BABIES/lena_symptoms/manuscript/negmood_fp.png")
 ```
 
-```{r }
-#sensitivity
-fp_final_alpha %>%
-  select(
-    sens_fin_1:sens_fin_4
-  ) %>% 
-  psych::alpha()
-```
-
-```{r }
-#intrusiveness
-fp_final_alpha %>%
-  select(
-    intrus_fin_1:intrus_fin_4
-  ) %>% 
-  psych::alpha()
-```
 
