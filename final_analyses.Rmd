@@ -32,7 +32,7 @@ demographics_file <- "~/Desktop/BABIES/lena_symptoms/data_final/demographics_201
 lena_file <- "~/Desktop/BABIES/lena_symptoms/data_final/lena_d1_20191015.csv"
 lena_time_file <- "~/Desktop/BABIES/lena_symptoms/data_final/lena_d1_time_20191015.csv"
 baby_raceth_file <- "~/Desktop/BABIES/lena_symptoms/data_final/baby_race_ethnicity.csv"
-ibq_file <- "~/Desktop/BABIES/lena_symptoms/data_final/ibq_scored_20190726.csv"
+ibq_file <- "~/Desktop/BABIES/lena_symptoms/data_final/ibq_scored_20191105.csv"
 sfp_care_file <- "~/Desktop/BABIES/lena_symptoms/data_final/PCIRS_sfp_wf.csv"
 fp_care_file <- "~/Desktop/BABIES/lena_symptoms/data_final/free_play_wf_20191014.csv"
 
@@ -81,7 +81,8 @@ d0 <-
     read_csv(fp_care_file) %>% 
       dplyr::select(
         ID,
-        sens_fp = sens_fin
+        sens_fp = sens_fin,
+        negmood_fp = negmood_fin
       ),
     by = "ID"
   ) %>% 
@@ -98,8 +99,56 @@ d0 <-
       dplyr::select(
         ID, 
         itsea_symptoms,
-        itsea_intern,
-        itsea_extern,
+        # itsea symptoms items
+        itsea_a2, 
+        itsea_a4, 
+        itsea_b8, 
+        itsea_b10, 
+        itsea_b27, 
+        itsea_b32,
+        itsea_a28, 
+        itsea_a30, 
+        itsea_a33, 
+        itsea_b3, 
+        itsea_b9, 
+        itsea_b16, 
+        itsea_b30, 
+        itsea_b34, 
+        itsea_b44, 
+        itsea_b88, 
+        itsea_c2, 
+        itsea_e4,
+        itsea_a9, 
+        itsea_a39, 
+        itsea_a40, 
+        itsea_b43, 
+        itsea_b76, 
+        itsea_b81, 
+        itsea_b84, 
+        itsea_b91, 
+        itsea_b92,
+        itsea_a3, 
+        itsea_a12, 
+        itsea_a35, 
+        itsea_b37, 
+        itsea_b70, 
+        itsea_b86, 
+        itsea_e5, 
+        itsea_e6, 
+        itsea_e11,
+        itsea_a7, 
+        itsea_a21, 
+        itsea_a23, 
+        itsea_b31, 
+        itsea_b45, 
+        itsea_b50, 
+        itsea_b53, 
+        itsea_b59, 
+        itsea_b65, 
+        itsea_b66, 
+        itsea_b74, 
+        itsea_b80, 
+        itsea_b85,
         itsea_concern_ied,
         baby_age_18month
       ),
@@ -109,6 +158,11 @@ d0 <-
     read_csv(ibq_file) %>% 
       dplyr::select(
         ID,
+        #IBQ NEG items
+        ibq_64, ibq_74, ibq_75, ibq_32, ibq_79, ibq_80,
+        ibq_2, ibq_3_r, ibq_4, ibq_21, ibq_52, ibq_53, ibq_62,
+        ibq_22, ibq_76, ibq_77, ibq_78, ibq_87, ibq_89,
+        ibq_36, ibq_37, ibq_38, ibq_63, ibq_71, ibq_72,
         NEG
       ),
     by = "ID"
@@ -134,13 +188,9 @@ d0 <-
       baby_age_6mo_visit, baby_age_lena
     )
   ) 
-
-
 ```
 
-# Descriptive statistics 
-
-## Retention / Missing data
+# Retention / Missing data
 
 Dyads who completed the 6-month assessment (either lab or home observation), were eligible for the 18-month assesment, and complete the 18-month assessment are incldued in the current analyses. 
 
@@ -172,17 +222,7 @@ d0_d1 %>%
   count(!is.na(intervention_group))
 ```
 
-Missing sensitivity from SFP:
-69: SFP incomplete 
-119: SFP incomplete
-1011: SFP incomplete
-1078: mother known to coders
-
-Missing sensitivity from FP:
-105: Free play incomplete
-1078: mother known to coders
-
-## Power
+# Power
 ```{r}
 #adjust p-value based on Holm-Bonferonni method
 p.adjust(.0083, method = "holm", n = 6)
@@ -192,6 +232,18 @@ pwr.f2.test(u = 1, v = 69, f2 = .20, sig.level = .008)
 
 ## Descriptive statistics 
 
+## IBQ and ITSEA reliability
+
+```{r}
+d0_d1 %>% 
+  select(ibq_64:ibq_72) %>% 
+  alpha(check.keys = TRUE)
+
+d0_d1 %>% 
+  select(itsea_a2:itsea_b85, -itsea_c2) %>% 
+  alpha()
+```
+
 ```{r}
 d0_d1 %>% 
   summarize_at(
@@ -199,19 +251,21 @@ d0_d1 %>%
       baby_age_18month,
       baby_age_lena,
       NEG,
+      cvc_max,
       ctc_daily_rate,
       ctc_prop,
       awc_daily_rate,
       awc_prop,
       sens_sfp,
       sens_fp,
+      negmood_fp,
       itsea_symptoms,
       duration,
       mom_age_6mo_visit,
       income_needs,
       percent_mother
     ), 
-    list(~mean, ~sd, ~min, ~max), na.rm = TRUE)
+    funs(mean, sd, min, max), na.rm = TRUE)
 ```
 range preg weeks gestation: 16.71 - 34.71428571
 
@@ -1094,6 +1148,32 @@ r_chg_sfp <- summary(sym_sfp)$adj.r.squared - r.squared_base
 r_chg_sfp
 
 confint(sym_sfp)
+```
+
+```{r}
+#assessing outliers
+outlierTest(sym_sfp) # Bonferonni p-value for most extreme obs
+qqPlot(sym_sfp, main = "QQ Plot") #qq plot for studentized resid 
+
+# Evaluate Collinearity
+vif(sym_sfp) # variance inflation factors 
+
+# Global test of model assumptions
+gvlma(sym_sfp) 
+```
+
+```{r}
+sym_sfp_sqrt <- 
+  lm(
+    sqrt(itsea_symptoms) ~ 
+      scale(sens_sfp, scale = FALSE) +
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(NEG, scale = FALSE),
+    data = d0_d1 
+  )
+summary(sym_sfp_sqrt)
+
+gvlma(sym_sfp_sqrt) 
 ```
 
 ```{r}

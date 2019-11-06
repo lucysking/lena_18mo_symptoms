@@ -6,19 +6,15 @@ output: html_document
 ```{r}
 #Libraries
 library(tidyverse)
+library(psych)
 
 #Parameters
-#ibq_cs_file <- "~/Desktop/BABIES/asl_infant_affect/data/ibq_cs_20180912.csv" 
-ibq_cs_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/ibq_cs_20190413.csv"
-#cross-sectional data
-
-#ibq_lg_file <- "~/Desktop/BABIES//asl_infant_affect/data/ibq_long_20180912.csv" 
-ibq_lg_file <- "~/Desktop/lena_18mo_symptoms/Data_Final/ibq_long_20190726.csv"
-#longitudinal data
+ibq_cs_file <- "~/Desktop/BABIES/lena_symptoms/data_final/ibq_cs_20190413.csv"
+ibq_lg_file <- "~/Desktop/BABIES/lena_symptoms/data_final/ibq_long_20190726.csv"
 ```
 
 
-###Join data from cross-sectional and longitudinal projects
+# Join data from cross-sectional and longitudinal projects
 ```{r}
 ibq <-
   read_csv(ibq_cs_file) %>% 
@@ -29,13 +25,30 @@ ibq <-
       rename(ID = record_id) %>% 
       mutate(ID = as.integer(ID))
   ) %>% 
-  select(-redcap_event_name:-redcap_survey_identifier)
+  select(-redcap_event_name:-redcap_survey_identifier) %>% 
+  filter(ibq_complete == 2)
 ```
 
-###Score the IBQ-R
+# Score the IBQ-R
 ```{r}
 ibq <- 
   ibq %>% 
+  mutate_at(
+    vars(ibq_1:ibq_91),
+    funs(
+      . %>% 
+        dplyr::recode(
+          "1" = 1,
+          "2" = 2,
+          "3" = 3,
+          "4" = 4,
+          "5" = 5,
+          "6" = 6,
+          "7" = 7,
+          "8" = NA_real_
+        )
+    )
+  ) %>% 
   mutate_at(
     vars(
       ibq_3,
@@ -51,16 +64,16 @@ ibq <-
       ibq_86,
       ibq_91
     ),
-    funs(8 - .) #reverse code these items
+    funs("r" = 8 - .) #reverse code these items
   ) %>% 
   group_by(ID) %>% 
   mutate(
     act = mean( #activity level 
-      c(ibq_33, ibq_34, ibq_35, ibq_39, ibq_54, ibq_55, ibq_70), 
+      c(ibq_33_r, ibq_34, ibq_35, ibq_39, ibq_54, ibq_55, ibq_70), 
       na.rm = TRUE
     ),
     dist = mean( #distress to limitations
-      c(ibq_2, ibq_3, ibq_4, ibq_21, ibq_52, ibq_53, ibq_62), 
+      c(ibq_2, ibq_3_r, ibq_4, ibq_21, ibq_52, ibq_53, ibq_62), 
       na.rm = TRUE
     ),
     fear = mean( #fear
@@ -84,15 +97,16 @@ ibq <-
       na.rm = TRUE
     ),
     soot = mean( #soothability
-      c(ibq_81, ibq_82, ibq_83, ibq_84, ibq_85, ibq_86, ibq_91), 
+      c(ibq_81, ibq_82_r, ibq_83, ibq_84_r, ibq_85, ibq_86_r, ibq_91_r), 
       na.rm = TRUE
     ),
-    fall = 8 - mean( #falling reactivity/rate of recovery from distress
-      c(ibq_36, ibq_37, ibq_38, ibq_63, ibq_71, ibq_72), 
+    fall = mean( #falling reactivity/rate of recovery from distress
+      c(ibq_36, ibq_37_r, ibq_38, ibq_63, ibq_71, ibq_72_r), 
       na.rm = TRUE
     ),
+    fall_re = 8 - fall,
     cudd = mean( #cuddliness
-      c(ibq_61, ibq_50, ibq_51, ibq_59, ibq_60, ibq_73), 
+      c(ibq_61_r, ibq_50_r, ibq_51, ibq_59, ibq_60_r, ibq_73_r), 
       na.rm = TRUE
     ),
     perc = mean( #perceptual sensitivity
@@ -116,30 +130,62 @@ ibq <-
       na.rm = TRUE
     ),
     NEG = mean( #composite scale: negative affectivity 
-      c(sad, dist, fear, fall),
+      c(sad, dist, fear, fall_re),
       na.rm = TRUE 
     ),
     REG = mean( #composite scale: regulation
       c(lip, cudd, dura, soot),
       na.rm = TRUE 
     )
+  ) %>% 
+  ungroup()
+
+ibq %>% 
+  select(
+    ID,
+    perc
   )
 ```
 
+# Reliability
 ```{r}
-write_csv(ibq, "~/Desktop/lena_18mo_symptoms/Data_Final/ibq_scored_20190726.csv")
+ibq %>% 
+  # surgency
+  select(
+    ibq_23, ibq_24, ibq_68, ibq_69, ibq_88, ibq_9,
+    ibq_1, ibq_26, ibq_41, ibq_56, ibq_57, ibq_58, ibq_66,
+    ibq_16, ibq_44, ibq_45, ibq_46, ibq_47, ibq_48, ibq_49,
+    ibq_9, ibq_11, ibq_12, ibq_40, ibq_42, ibq_43, ibq_65,
+    ibq_33_r, ibq_34, ibq_35, ibq_39, ibq_54, ibq_55, ibq_70,
+    ibq_20, ibq_27, ibq_28, ibq_29, ibq_30, ibq_31
+  ) %>% 
+  alpha()
 ```
-
 
 ```{r}
 ibq %>% 
-  filter(!is.na(NEG)) %>% 
-  n_distinct()
+  # negative affectivity
+  select(
+    ibq_64, ibq_74, ibq_75, ibq_32, ibq_79, ibq_80,
+    ibq_2, ibq_3_r, ibq_4, ibq_21, ibq_52, ibq_53, ibq_62,
+    ibq_22, ibq_76, ibq_77, ibq_78, ibq_87, ibq_89,
+    ibq_36, ibq_37, ibq_38, ibq_63, ibq_71, ibq_72
+  ) %>% 
+  alpha()
 ```
 
-
-
-###Visualize
+```{r}
+ibq %>% 
+  # regulation
+  select(
+    ibq_13, ibq_14, ibq_15, ibq_17, ibq_18, ibq_19, ibq_67,
+    ibq_61_r, ibq_50_r, ibq_51, ibq_59, ibq_60_r, ibq_73_r,
+    ibq_5, ibq_6, ibq_7, ibq_8, ibq_10, ibq_25,
+    ibq_81, ibq_82_r, ibq_83, ibq_84_r, ibq_85, ibq_86_r, ibq_91_r
+  ) %>% 
+  alpha()
+```
+# Visualize
 
 ```{r}
 ibq %>% 
@@ -172,4 +218,7 @@ ibq %>%
   geom_smooth(method = "lm")
 ```
 
+```{r}
+write_csv(ibq, "~/Desktop/BABIES/lena_symptoms/data_final/ibq_scored_20191105.csv")
+```
 

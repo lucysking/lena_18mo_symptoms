@@ -1,5 +1,5 @@
 ---
-title: "Score 18-month questionnaires"
+title: "Score ITSEA"
 output: html_notebook
 ---
 
@@ -7,29 +7,32 @@ output: html_notebook
 # Libraries
 library(tidyverse)
 library(lubridate)
-library(dplyr)
 library(purrr)
-#install.packages("psych")
 library(psych)
-#install.packages("GPArotation")
 library(GPArotation)
 
 # Files
 
-## Fran file paths
-q_18month_cs_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_cs_datecleaned_20190726.csv"
-q_18month_long_file <- "~/Desktop/lena_18mo_symptoms/Data/qs_18mo_long_datecleaned_20190726.csv"
-demographics_file <- "~/Desktop/lena_18mo_symptoms/Data/demographics_20190726.csv"
+q_18month_cs_file <- "~/Desktop/BABIES/lena_symptoms/data_final/qs_18mo_cs_datecleaned_20190726.csv"
+q_18month_long_file <- "~/Desktop/BABIES/lena_symptoms/data_final/qs_18mo_long_datecleaned_20190726.csv"
+demographics_file <- "~/Desktop/BABIES/lena_symptoms/data_final/demographics_20190726.csv"
 
-## Lucy file paths
-# q_18month_cs_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/qs_18mo_cs_datecleaned_20190510.csv"
-# q_18month_long_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/qs_18mo_long_datecleaned_20190510.csv"
-# demographics_file <- "~/Desktop/BABIES/lena_symptoms/fran_box_data/demographics_20190510.csv"
+theme_lena <-
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(size = 18, hjust = .5),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.title = element_text(size = 18), 
+    legend.text = element_text(size = 16),
+    legend.position = "bottom"
+  )
 ```
 
-**Read in data**
+# Read in data
 ```{r}
-q_18month <-
+itsea <-
   read_csv(q_18month_cs_file) %>% 
   rename(ID = record_id) %>% 
   mutate(ID = as.integer(ID)) %>% 
@@ -40,6 +43,7 @@ q_18month <-
       mutate(ID = as.integer(ID)) %>%
       select(-redcap_event_name:-month_survey_timestamp) 
   ) %>% 
+  select(ID, survey_date, itsea_a2:itsea_e11) %>% 
   left_join(
     read_csv(demographics_file) %>% 
       select(ID, male, baby_dob),
@@ -51,8 +55,8 @@ q_18month <-
 
 ## Compute number of non-missing items for each subscale
 ```{r}
-q_18month_scored <-
-  q_18month %>% 
+itsea <-
+  itsea %>% 
   group_by(ID) %>% 
   mutate(
     n_itsea_activity = sum(
@@ -179,10 +183,13 @@ q_18month_scored <-
   ungroup()
 ```
 
+
 ## Calculate subscale scores
+
+Using scoring specific by ITSEA manual. For each subscale, calculate the mean by taking the sum and dividing by the number of items the both responded to. If the mother missed too many items, replace subscale score with NA.
 ```{r}
-q_18month_scored <-
-  q_18month_scored %>% 
+itsea <-
+  itsea %>% 
   #reverse code items
   mutate_at(
     vars(
@@ -367,8 +374,8 @@ q_18month_scored <-
 
 # Calculate symptom and competence scores
 ```{r}
-q_18month_scored <-
-  q_18month_scored %>%
+itsea <-
+  itsea %>%
   group_by(ID) %>% 
   mutate(
     itsea_symptoms = sum(
@@ -389,74 +396,28 @@ q_18month_scored <-
   ungroup() 
 ```
 
-#Calculate alpha
+# Calculate alphas
+
+## subscales
 ```{r}
-#total
-itsea_alpha_total <-
-q_18month_scored %>% 
-  select(
-    itsea_intern,
-    itsea_extern,
-    itsea_negemo
-  )
-
-psych::alpha(itsea_alpha_total)
-
-#externalizing subscales
-itsea_alpha_externalizing <-
-  q_18month_scored %>% 
-  select(
-    itsea_activity,
-    itsea_agress
-  )
-
-psych::alpha(itsea_alpha_externalizing)
-
-#internalizing
-itsea_alpha_internalizing <-
-  q_18month_scored %>% 
-  select(
-    itsea_depp,
-    itsea_gad
-  )
-
-psych::alpha(itsea_alpha_internalizing)
-
-#items within internalizing
-itsea_alpha_int_items <-
-  q_18month_scored %>% 
-  select(
-    itsea_a9, 
-    itsea_a39, 
-    itsea_a40, 
-    itsea_b43, 
-    itsea_b76, 
-    itsea_b81, 
-    itsea_b84, 
-    itsea_b91, 
-    itsea_b92,
-    itsea_a12, 
-    itsea_a35, 
-    itsea_b37, 
-    itsea_b70, 
-    itsea_b86, 
-    itsea_e5, 
-    itsea_e6, 
-    itsea_e11
-  )
-
-psych::alpha(itsea_alpha_int_items)
-
-#items with externalizing
-itsea_alpha_ext_items <-
-  q_18month_scored %>% 
+# activity
+itsea %>% 
   select(
     itsea_a2, 
     itsea_a4, 
     itsea_b8, 
     itsea_b10, 
     itsea_b27, 
-    itsea_b32,
+    itsea_b32
+  ) %>% 
+  alpha()
+```
+
+```{r}
+# aggression
+itsea %>% 
+  select(
+    itsea_a28, 
     itsea_a30, 
     itsea_a33, 
     itsea_b3, 
@@ -468,14 +429,79 @@ itsea_alpha_ext_items <-
     itsea_b88, 
     itsea_c2, 
     itsea_e4
-  )
+  ) %>%   
+  alpha()
 
-psych::alpha(itsea_alpha_ext_items)
+```
 
-#negemo
-itsea_alpha_negemo_items <-
-  q_18month_scored %>% 
+```{r}
+# depression
+itsea %>% 
   select(
+    itsea_a9, 
+    itsea_a39, 
+    itsea_a40, 
+    itsea_b43, 
+    itsea_b76, 
+    itsea_b81, 
+    itsea_b84, 
+    itsea_b91, 
+    itsea_b92
+  ) %>% 
+  alpha()
+```
+
+```{r}
+# empathy
+itsea %>% 
+  select(
+    itsea_a22, 
+    itsea_b51, 
+    itsea_b56, 
+    itsea_b57, 
+    itsea_b63, 
+    itsea_b73, 
+    itsea_c4
+  ) %>% 
+  alpha()
+```
+
+```{r}
+# GAD
+itsea %>% 
+  select(
+    itsea_a3, 
+    itsea_a12, 
+    itsea_a35, 
+    itsea_b37, 
+    itsea_b70, 
+    itsea_b86, 
+    itsea_e5, 
+    itsea_e6, 
+    itsea_e11
+  ) %>% 
+  alpha()
+```
+
+```{r}
+# play
+itsea %>% 
+  select(
+    itsea_a25, 
+    itsea_a31, 
+    itsea_b25, 
+    itsea_b38, 
+    itsea_b67, 
+    itsea_b71
+  ) %>% 
+  alpha()
+```
+
+```{r}
+# negative emotionality
+itsea %>% 
+  select(
+    itsea_a7, 
     itsea_a21, 
     itsea_a23, 
     itsea_b31, 
@@ -488,13 +514,32 @@ itsea_alpha_negemo_items <-
     itsea_b74, 
     itsea_b80, 
     itsea_b85
-  )
+  ) %>% 
+  alpha()
+```
 
-psych::alpha(itsea_alpha_negemo_items)
+```{r}
+# pro-social
+itsea %>% 
+  select(
+    itsea_a10, 
+    itsea_a13, 
+    itsea_a15, 
+    itsea_b6, 
+    itsea_b19, 
+    itsea_b26, 
+    itsea_b28, 
+    itsea_b42, 
+    itsea_b60, 
+    itsea_b90
+  ) %>% 
+  alpha()
+```
 
-#all items
-itsea_alpha_all_items <-
-  q_18month_scored %>% 
+## internalizing and externalizing
+```{r}
+# internalizing
+itsea %>% 
   select(
     itsea_a9, 
     itsea_a39, 
@@ -505,6 +550,7 @@ itsea_alpha_all_items <-
     itsea_b84, 
     itsea_b91, 
     itsea_b92,
+    itsea_a3, 
     itsea_a12, 
     itsea_a35, 
     itsea_b37, 
@@ -512,13 +558,22 @@ itsea_alpha_all_items <-
     itsea_b86, 
     itsea_e5, 
     itsea_e6, 
-    itsea_e11,
+    itsea_e11
+  ) %>% 
+  alpha()
+```
+
+```{r}
+# externalizing
+itsea %>% 
+  select(
     itsea_a2, 
     itsea_a4, 
     itsea_b8, 
     itsea_b10, 
     itsea_b27, 
     itsea_b32,
+    itsea_a28, 
     itsea_a30, 
     itsea_a33, 
     itsea_b3, 
@@ -528,8 +583,54 @@ itsea_alpha_all_items <-
     itsea_b34, 
     itsea_b44, 
     itsea_b88, 
-    #itsea_c2, 
+    itsea_c2, 
+    itsea_e4
+  ) %>% 
+  alpha()
+```
+
+## total symptoms
+```{r}
+#total symptoms 
+itsea %>% 
+  select(
+    itsea_a2, 
+    itsea_a4, 
+    itsea_b8, 
+    itsea_b10, 
+    itsea_b27, 
+    itsea_b32,
+    itsea_a28, 
+    itsea_a30, 
+    itsea_a33, 
+    itsea_b3, 
+    itsea_b9, 
+    itsea_b16, 
+    itsea_b30, 
+    itsea_b34, 
+    itsea_b44, 
+    itsea_b88, 
+    #itsea_c2, # only show if mother endorses child combining words; mostly missing
     itsea_e4,
+    itsea_a9, 
+    itsea_a39, 
+    itsea_a40, 
+    itsea_b43, 
+    itsea_b76, 
+    itsea_b81, 
+    itsea_b84, 
+    itsea_b91, 
+    itsea_b92,
+    itsea_a3, 
+    itsea_a12, 
+    itsea_a35, 
+    itsea_b37, 
+    itsea_b70, 
+    itsea_b86, 
+    itsea_e5, 
+    itsea_e6, 
+    itsea_e11,
+    itsea_a7, 
     itsea_a21, 
     itsea_a23, 
     itsea_b31, 
@@ -542,16 +643,47 @@ itsea_alpha_all_items <-
     itsea_b74, 
     itsea_b80, 
     itsea_b85
-  )
+  ) %>% 
+  alpha()
+```
 
-psych::alpha(itsea_alpha_all_items)
-
+## total competence
+```{r}
+#total competence
+itsea %>% 
+  select(
+    itsea_a25, 
+    itsea_a31, 
+    itsea_b25, 
+    itsea_b38, 
+    itsea_b67, 
+    itsea_b71,
+    itsea_a10, 
+    itsea_a13, 
+    itsea_a15, 
+    itsea_b6, 
+    itsea_b19, 
+    itsea_b26, 
+    itsea_b28, 
+    itsea_b42, 
+    itsea_b60, 
+    itsea_b90,
+    itsea_a22, 
+    itsea_b51, 
+    itsea_b56, 
+    itsea_b57, 
+    itsea_b63, 
+    itsea_b73 
+    #itsea_c4 # only show if mother endorses child combining words; mostly missing
+  ) %>% 
+  alpha()
 ```
 
 ## Calculate clinical cut scores
+Cutoff scores drawn from ITSEA manual.
 ```{r}
-q_18month_scored <-
-  q_18month_scored %>% 
+itsea <-
+  itsea %>% 
   group_by(ID) %>% 
   mutate(
     activity_concern = case_when(
@@ -648,14 +780,41 @@ q_18month_scored %>%
 
 # Visualizing subscale scores
 ```{r}
-q_18month_scored %>% 
+itsea %>% 
   select(itsea_activity:itsea_social) %>% 
   gather(itsea_subscale, score, itsea_activity:itsea_social) %>% 
   ggplot(aes(score, color = itsea_subscale)) +
   geom_freqpoly(bins = 5, size = 2, alpha = 1/2) +
   theme_minimal()
 
-q_18month_scored %>% 
+itsea %>% 
+  select(
+    Activity = itsea_activity,
+    Aggression = itsea_agress,
+    Depression = itsea_depp,
+    Anxiety = itsea_gad,
+    `Negative emotion` = itsea_negemo
+  ) %>% 
+  gather(itsea_subscale, score, Activity:`Negative emotion`) %>% 
+  ggplot(aes(score)) +
+  geom_histogram(bins = 12) +
+  theme_lena +
+  theme(
+    strip.text = element_text(size = 16)
+  ) +
+  facet_wrap(.~itsea_subscale, scales = "free") +
+  labs(
+    x = "Subscale score"
+  )
+
+ggsave(
+  "~/Desktop/BABIES/lena_symptoms/manuscript/itsea_subscale_hist.png",
+  width = 7,
+  height = 5
+)
+
+
+itsea %>% 
   select(itsea_activity:itsea_social) %>% 
   gather(itsea_subscale, score, itsea_activity:itsea_social) %>% 
   ggplot(aes(score)) +
@@ -665,12 +824,10 @@ q_18month_scored %>%
 
 ```
 
-
-
 # ITSEA EFA
 ```{r}
 itsea_subscales <- 
-  q_18month_scored %>% 
+  itsea %>% 
   arrange(ID) %>% 
   select( 
     itsea_activity:itsea_social
@@ -679,81 +836,118 @@ itsea_subscales <-
 
 itsea_sub_corr <-
   cor(itsea_subscales)
+```
 
-VSS.scree(itsea_subscales)
+```{r}
+fa.parallel(itsea_subscales)
 
 itsea_fa2 <- fa(
-  itsea_sub_corr, 
+  itsea_subscales, 
   nfactors = 2, 
-  rotate = "oblimin",
-  scores = "tenBerge",
-  impute = "median"
+  rotate = "varimax"
   )
 itsea_fa2
 itsea_fa2$Vaccounted
-
-itsea_fa3 <- fa(
-  itsea_sub_corr, 
-  nfactors = 3, 
-  rotate = "oblimin", #allows factors to be correlated
-  scores = "tenBerge", #allows scores to be correlated
-  impute = "median"
-  )
-itsea_fa3
-itsea_fa3$Vaccounted
 ```
-Retaining 2 factors given eigen value given third factor explained small amount of variance and eigen value < 1. 
 
-Factor 1 explains 24% of the variance and is basically "symptoms."
-Factor 2 explains 20% of the variance and is basically "competence."
+#### Heatmap of 2-factor solution
 
-## Extract factor scores
 ```{r}
-itsea_fascores_calc <-
-  factor.scores(
-    itsea_subscales, 
-    itsea_fa2, 
-    method = "tenBerge", 
-    impute = "median"
-  ) 
-
-itsea_fascores_pull <-
-  itsea_fascores_calc$scores %>% 
-  as_tibble() %>% 
-  rownames_to_column("index")
-
-itsea_fascores <-
-  q_18month_scored %>% 
-  arrange(ID) %>% 
-  select(
-    ID,
-    itsea_activity:itsea_social
-  ) %>% 
-  rownames_to_column("index")
-
-itsea_fascores <-
-  itsea_fascores %>% 
-  left_join(itsea_fascores_pull, by = "index") %>% 
-  select(-index) %>% 
-  rename(
-    itsea_f1_symptoms = MR1,
-    itsea_f2_competence = MR2
+factor_names = c(
+  "Factor 1:\nSymptoms", 
+  "Factor 2:\nCompetence"
   )
+
+loadings <-
+  itsea_fa2$loadings[] %>% 
+  data.frame() %>% 
+  rownames_to_column("measure") %>% 
+  gather(factor, loading, -measure) %>%  
+  mutate(factor = as.character(factor(factor, labels = factor_names))) 
+  
+# get fa.sort() order
+order <- 
+  loadings %>%
+  group_by(measure) %>%
+  top_n(1, abs(loading)) %>%
+  ungroup() %>%
+  arrange(desc(factor), abs(loading)) %>%
+  mutate(order = 1:length(levels(factor(loadings$measure)))) %>%
+  select(measure, order)
+  
+# get percent shared variance explained
+shared_var <- itsea_fa2$Vaccounted %>%
+  data.frame() %>%
+  rownames_to_column("stat") %>%
+  filter(stat == "Proportion Var") %>%
+  select(-stat) %>%
+  gather(factor, var) %>%
+  mutate(factor = as.character(factor(factor, labels = factor_names))) %>%
+  mutate(var = paste0(factor, "\n(", round(var, 2)*100, "% var.)"))
+
+  # make plot
+loadings_plot_data <- 
+  loadings %>% 
+  left_join(order, by = "measure") %>%
+  left_join(shared_var, by = "factor")
+
+loadings_plot_data %>% 
+  mutate(
+    measure = fct_recode(
+      measure,
+      Activity = "itsea_activity", 
+      Aggression = "itsea_agress", 
+      Depression = "itsea_depp", 
+      Anxiety = "itsea_gad", 
+      Play = "itsea_play",
+      Empathy = "itsea_empath",
+      `Negative emotionality` = "itsea_negemo",
+      `Pro-social relations` = "itsea_social"
+    )
+  ) %>% 
+  ggplot(
+    aes(
+      x = var, 
+      y = reorder(measure, order), 
+      fill = loading,
+      label = round(loading, 2)
+    )
+  ) +
+  geom_tile(color = "black") +
+  geom_text(size = 6, color = "black") +
+  scale_fill_distiller(
+    limits = c(-1, 1), 
+    palette = "RdYlBu",
+    guide = guide_colorbar(barheight = 20)
+  ) +
+  scale_x_discrete(position = "top") +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size = 16),
+    legend.text = element_text(size = 14),
+    axis.title = element_blank(), 
+    axis.text.y = element_text(size = 18),
+    axis.text.x = element_text(size = 17)
+  )
+
+ggsave("~/Desktop/BABIES/lena_symptoms/manuscript/2efa.png", height = 10, width = 11.5)
 ```
 
 ## Export data
 
 ```{r}
 q_18month_scored <-
-  q_18month_scored %>% 
+  itsea %>% 
   mutate(
     survey_date = parse_date_time(survey_date, orders = c("ymd", "mdy")),
+    baby_dob = parse_date_time(baby_dob, orders = c("ymd", "mdy")),
     baby_age_18month = (baby_dob %--% survey_date) / months(1),
     baby_age_18month_int = as.integer(baby_age_18month)
   ) 
 
+glimpse(q_18month_scored)
 
-write_csv(q_18month_scored, "~/Desktop/lena_18mo_symptoms/Data/q_18month_scores_20190726.csv")
+write_csv(q_18month_scored, "~/Desktop/BABIES/lena_symptoms/data_final/q_18month_scores_20190726.csv")
 ```
 
 
