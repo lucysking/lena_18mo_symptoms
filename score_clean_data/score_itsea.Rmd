@@ -831,8 +831,7 @@ itsea_subscales <-
   arrange(ID) %>% 
   select( 
     itsea_activity:itsea_social
-    ) %>% 
-  na.omit()
+  ) 
 
 itsea_sub_corr <-
   cor(itsea_subscales)

@@ -230,7 +230,7 @@ p.adjust(.0083, method = "holm", n = 6)
 pwr.f2.test(u = 1, v = 69, f2 = .20, sig.level = .008)
 ```
 
-## Descriptive statistics 
+# Descriptive statistics 
 
 ## IBQ and ITSEA reliability
 
@@ -953,7 +953,7 @@ r_chg_awcrate <- summary(sym_awc_rate)$adj.r.squared - r.squared_base
 
 r_chg_awcrate
 
-confint(sym_awc_rate)
+confint(sym_awc_rate)«
 ```
 
 ```{r}
@@ -1527,5 +1527,9 @@ d0_d1_follow <-
 
 t.test(d0_d1_follow$ctc_prop ~ d0_d1_follow$dad_present)
 t.test(d0_d1_follow$ctc_prop ~ d0_d1_follow$grandparent_present)
+```
+
+```{r}
+write_csv(d0_d1, "~/Desktop/BABIES/lena_symptoms/data_final/king_caregivinginput_itsea_20191105.csv")
 ```
 

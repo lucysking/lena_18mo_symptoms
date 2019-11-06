@@ -171,7 +171,7 @@ ibq %>%
     ibq_22, ibq_76, ibq_77, ibq_78, ibq_87, ibq_89,
     ibq_36, ibq_37, ibq_38, ibq_63, ibq_71, ibq_72
   ) %>% 
-  alpha()
+  alpha(check.keys = TRUE)
 ```
 
 ```{r}
