@@ -1,6 +1,6 @@
 ---
 title: "Association of linguistic input at age 6 months and mental health symptoms at age 18 months"
-author: "Fran Querdasi & Lucy King"
+author: "Lucy King"
 output: html_document
 ---
 
@@ -35,7 +35,8 @@ baby_raceth_file <- "~/Desktop/BABIES/lena_symptoms/data_final/baby_race_ethnici
 ibq_file <- "~/Desktop/BABIES/lena_symptoms/data_final/ibq_scored_20191105.csv"
 sfp_care_file <- "~/Desktop/BABIES/lena_symptoms/data_final/PCIRS_sfp_wf.csv"
 fp_care_file <- "~/Desktop/BABIES/lena_symptoms/data_final/free_play_wf_20191014.csv"
-
+cesd_6mo_file <- "~/Desktop/BABIES/lena_symptoms/data_final/cesd_6mo_scored_20191118.csv"
+cesd_18mo_file <- "~/Desktop/BABIES/lena_symptoms/data_final/cesd_18mo_scored_20191118.csv"
 
 # Functions
 source("identify_outliers_histogram.R")
@@ -52,6 +53,17 @@ theme_lena <-
     legend.text = element_text(size = 16),
     legend.position = "bottom"
   )
+
+# Display options
+options(scipen = 999)
+
+d0_d1 %>% 
+  count(is.na(cesd18_total), is.na(itsea_symptoms))
+
+d0_d1 %>% 
+  filter(is.na(cesd18_total), !is.na(itsea_symptoms)) %>% 
+  pull(ID)
+
 ```
 
 # Read in and join data
@@ -179,6 +191,22 @@ d0 <-
     readxl::read_xlsx(fp_intervention_id),
     by = "ID"
   ) %>% 
+  left_join(
+    read_csv(cesd_6mo_file) %>% 
+      rename_at(
+        vars(starts_with("cesd")),
+        list(~str_replace(., "cesd", "cesd6"))
+      ),
+    by = "ID"
+  ) %>% 
+  left_join(
+    read_csv(cesd_18mo_file) %>% 
+      rename_at(
+        vars(starts_with("cesd")),
+        list(~str_replace(., "cesd", "cesd18"))
+      ),
+    by = "ID"
+  ) %>% 
   mutate(
     day_type = as.factor(day_type),
     male = as.factor(male),
@@ -232,15 +260,71 @@ pwr.f2.test(u = 1, v = 69, f2 = .20, sig.level = .008)
 
 # Descriptive statistics 
 
-## IBQ and ITSEA reliability
+## IBQ, ITSEA, CESD reliability
 
 ```{r}
 d0_d1 %>% 
   select(ibq_64:ibq_72) %>% 
   alpha(check.keys = TRUE)
+```
 
+```{r}
 d0_d1 %>% 
   select(itsea_a2:itsea_b85, -itsea_c2) %>% 
+  alpha()
+```
+
+```{r}
+d0_d1 %>% 
+  select(
+    cesd6_1,
+    cesd6_2,
+    cesd6_3,
+    cesd6_4_r,
+    cesd6_5,
+    cesd6_6,
+    cesd6_7,
+    cesd6_8_r,
+    cesd6_9,
+    cesd6_10,
+    cesd6_11,
+    cesd6_12_r,
+    cesd6_13,
+    cesd6_14,
+    cesd6_15,
+    cesd6_16_r,
+    cesd6_17,
+    cesd6_18,
+    cesd6_19,
+    cesd6_20
+  ) %>% 
+  alpha()
+```
+
+```{r}
+d0_d1 %>% 
+  select(
+    cesd18_1,
+    cesd18_2,
+    cesd18_3,
+    cesd18_4_r,
+    cesd18_5,
+    cesd18_6,
+    cesd18_7,
+    cesd18_8_r,
+    cesd18_9,
+    cesd18_10,
+    cesd18_11,
+    cesd18_12_r,
+    cesd18_13,
+    cesd18_14,
+    cesd18_15,
+    cesd18_16_r,
+    cesd18_17,
+    cesd18_18,
+    cesd18_19,
+    cesd18_20
+  ) %>% 
   alpha()
 ```
 
@@ -263,7 +347,9 @@ d0_d1 %>%
       duration,
       mom_age_6mo_visit,
       income_needs,
-      percent_mother
+      percent_mother,
+      cesd6_total,
+      cesd18_total
     ), 
     funs(mean, sd, min, max), na.rm = TRUE)
 ```
@@ -346,6 +432,14 @@ d0_d1 %>%
 d0_d1 %>% 
   count(day_type) %>% 
   mutate(per = n / sum(n))
+
+d0_d1 %>% 
+  count(cesd6_total >= 16) %>% 
+  mutate(per = n / sum(n))
+
+d0_d1 %>% 
+  count(cesd18_total >= 16) %>% 
+  mutate(per = n / sum(n))
 ```
 
 
@@ -374,6 +468,12 @@ d0_d1 %>%
   identify_outliers_hist(x = itsea_symptoms)
 
 d0_d1 %>% 
+  identify_outliers_hist(x = cesd6_total)
+
+d0_d1 %>% 
+  identify_outliers_hist(x = cesd18_total)
+
+d0_d1 %>% 
   count(is.na(sens_fp))
 ```
 
@@ -391,7 +491,9 @@ correlation_table <-
     awc_prop,
     sens_sfp,
     sens_fp,
-    itsea_symptoms
+    itsea_symptoms,
+    cesd6_total,
+    cesd18_total
   ) %>% 
   correlate() %>% 
   fashion()
@@ -436,6 +538,10 @@ cor.test(d0_d1$education, d0_d1$sens_fp, method = "spearman")
 
 cor.test(d0_d1$education, d0_d1$itsea_symptoms, method = "spearman")
 cor.test(d0_d1$education, d0_d1$NEG, method = "spearman")
+
+cor.test(d0_d1$cesd6_total, d0_d1$itsea_symptoms)
+cor.test(d0_d1$cesd18_total, d0_d1$itsea_symptoms)
+cor.test(d0_d1$cesd6_total, d0_d1$awc_daily_rate)
 ```
 
 ```{r}
@@ -570,6 +676,37 @@ d0_d1 %>%
 
 ggsave(
   "~/Desktop/BABIES/lena_symptoms/manuscript/itsea_hist.png"
+)
+```
+
+
+```{r}
+d0_d1 %>% 
+  ggplot(aes(cesd6_total)) +
+  geom_histogram() +
+  scale_x_continuous(breaks = seq.int(0, 3, .25)) +
+  theme_lena +
+  labs(
+    x = "Maternal depressive symptoms\n at infant age 6 months"
+  )
+
+ggsave(
+  "~/Desktop/BABIES/lena_symptoms/manuscript/cesd6_hist.png"
+)
+```
+
+```{r}
+d0_d1 %>% 
+  ggplot(aes(cesd18_total)) +
+  geom_histogram() +
+  scale_x_continuous(breaks = seq.int(0, 3, .25)) +
+  theme_lena +
+  labs(
+    x = "Maternal depressive symptoms\n at infant age 18 months"
+  )
+
+ggsave(
+  "~/Desktop/BABIES/lena_symptoms/manuscript/cesd18_hist.png"
 )
 ```
 
@@ -780,11 +917,39 @@ anova(symp_momage_NEG_race, symp_race)
 ```
 
 ```{r}
+# maternal 6-month depressive symptoms
+symp_cesd6 <-
+  lm(
+    itsea_symptoms ~ 
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(NEG, scale = FALSE) +
+      scale(cesd6_total, scale = FALSE),
+    data = d0_d1_temperament
+  )
+
+anova(symp_NEG, symp_cesd6)
+```
+
+```{r}
+# maternal 18-month depressive symptoms
+symp_cesd18 <-
+  lm(
+    itsea_symptoms ~ 
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(NEG, scale = FALSE) +
+      scale(cesd18_total, scale = FALSE), 
+    data = d0_d1
+  )
+anova(symp_NEG, symp_cesd18)
+```
+
+```{r}
 final_base_model <- 
   lm(
     itsea_symptoms ~ 
       scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
+      scale(NEG, scale = FALSE) +
+      scale(cesd18_total, scale = FALSE),
     data = d0_d1 
   )
 summary(final_base_model)
@@ -805,6 +970,7 @@ sym_awc_prop <-
     itsea_symptoms ~ 
       scale(awc_prop, scale = FALSE) +
       scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(cesd18_total, scale = FALSE) +
       scale(NEG, scale = FALSE),
     data = d0_d1 
   )
@@ -838,6 +1004,7 @@ sym_awc_prop_sqrt <-
     sqrt(itsea_symptoms) ~ 
       scale(awc_prop, scale = FALSE) +
       scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(cesd18_total, scale = FALSE) +
       scale(NEG, scale = FALSE),
     data = d0_d1 
   )
@@ -873,6 +1040,7 @@ sym_ctc_prop <-
     itsea_symptoms ~ 
       scale(ctc_prop, scale = FALSE) +
       scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(cesd18_total, scale = FALSE) +
       scale(NEG, scale = FALSE),
     data = d0_d1 
   )
@@ -906,6 +1074,7 @@ sym_ctc_prop_sqrt <-
     sqrt(itsea_symptoms) ~ 
       scale(ctc_prop, scale = FALSE) +
       scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(cesd18_total, scale = FALSE) +
       scale(NEG, scale = FALSE),
     data = d0_d1 
   )
@@ -942,6 +1111,7 @@ sym_awc_rate <-
     itsea_symptoms ~ 
       scale(awc_daily_rate, scale = FALSE) +
       scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(cesd18_total, scale = FALSE) +
       scale(NEG, scale = FALSE),
     data = d0_d1 
   )
@@ -953,7 +1123,7 @@ r_chg_awcrate <- summary(sym_awc_rate)$adj.r.squared - r.squared_base
 
 r_chg_awcrate
 
-confint(sym_awc_rate)«
+confint(sym_awc_rate)
 ```
 
 ```{r}
@@ -974,6 +1144,7 @@ sym_awc_rate_sqrt <-
     sqrt(itsea_symptoms) ~ 
       scale(awc_daily_rate, scale = FALSE) +
       scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(cesd18_total, scale = FALSE) +
       scale(NEG, scale = FALSE),
     data = d0_d1 
   )
@@ -1010,6 +1181,7 @@ sym_ctc_rate <-
     itsea_symptoms ~ 
       scale(ctc_daily_rate, scale = FALSE) + 
       scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(cesd18_total, scale = FALSE) +
       scale(NEG, scale = FALSE),
     data = d0_d1 
   )
@@ -1034,6 +1206,22 @@ vif(sym_ctc_rate) # variance inflation factors
 
 # Global test of model assumptions
 gvlma(sym_ctc_rate) 
+```
+
+
+```{r}
+sym_ctc_rate_sqrt <- 
+  lm(
+    sqrt(itsea_symptoms) ~ 
+      scale(ctc_daily_rate, scale = FALSE) +
+      scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(cesd18_total, scale = FALSE) +
+      scale(NEG, scale = FALSE),
+    data = d0_d1 
+  )
+summary(sym_ctc_rate_sqrt)
+
+gvlma(sym_ctc_rate_sqrt) 
 ```
 
 ```{r}
@@ -1066,6 +1254,7 @@ sym_fp <-
     itsea_symptoms ~ 
       scale(sens_fp, scale = FALSE) +
       scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(cesd18_total, scale = FALSE) +
       scale(NEG, scale = FALSE),
     data = d0_d1 
   )
@@ -1102,6 +1291,7 @@ sym_fp_sqrt <-
     sqrt(itsea_symptoms) ~ 
       scale(sens_fp, scale = FALSE) +
       scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(cesd18_total, scale = FALSE) +
       scale(NEG, scale = FALSE),
     data = d0_d1 
   )
@@ -1136,6 +1326,7 @@ sym_sfp <-
     itsea_symptoms ~ 
       scale(sens_sfp, scale = FALSE) +
       scale(mom_age_6mo_visit, scale = FALSE) +
+      scale(cesd18_total, scale = FALSE) +
       scale(NEG, scale = FALSE),
     data = d0_d1 
   )
@@ -1225,7 +1416,7 @@ d0_d1 %>%
         "AW quantity", 
         "CT quantity",
         "Sensitivity to distress",
-        "Sensivity during play"
+        "Sensitivity during play"
         )
     )
   ) %>% 
@@ -1250,7 +1441,7 @@ d0_d1 %>%
 
 ggsave(
   "~/Desktop/BABIES/lena_symptoms/manuscript/care_ggpanels.png",
-  width = 6,
+  width = 7,
   height = 8
 )
 ```
@@ -1295,7 +1486,7 @@ symptoms <- z_score(d0_rr$resid_symp)
 Running both glmnet and glmpath and making sure results are the same. 
 
 ```{r}
-fit_net <- glmnet(predictors, symptoms, alpha = .5, family = "gaussian")
+fit_net <- glmnet(predictors, symptoms, family = "gaussian")
 fit_path <- glmpath(predictors, symptoms, family = "gaussian")
 ```
 
@@ -1308,27 +1499,83 @@ plot(fit_path)
 plot(fit_net, label = TRUE)
 ```
 
-### OLS regression including fp sensitivity and CT prop
+### Fit cross-validation model to determine optimal lambda
+
+
+Note also that the results of cv.glmnet are random, since the folds are selected at random. Users can reduce this randomness by running cv.glmnet many times, and averaging the error curves.
+
+#### CV with alpha = .5
+```{r inc_cv}
+set.seed(123)
+
+lambdaMins <- c()
+lambda1SEs <- c()
+
+for (i in 1:1000) {
+  fit_rr_cv <- cv.glmnet(predictors, symptoms, alpha = .5, family = "gaussian")
+  lambdaMins <- cbind(lambdaMins, fit_rr_cv$lambda.min)
+  lambda1SEs <- cbind(lambda1SEs, fit_rr_cv$lambda.1se)
+}
+
+```
+
 ```{r}
-sym_fp_ctc_prop <- 
-  lm(
-    itsea_symptoms ~ 
-      scale(ctc_prop, scale = FALSE) +
-      scale(sens_fp, scale = FALSE) +
-      scale(mom_age_6mo_visit, scale = FALSE) +
-      scale(NEG, scale = FALSE),
-    data = d0_d1 
+plot.cv.glmnet(fit_rr_cv)
+```
+
+#### Gather lambda values from CV 
+```{r}
+lambdaMins <- as_tibble(lambdaMins)
+lambdaMins <-
+  lambdaMins %>%
+  gather(run, lambdaMin, V1:V1000) 
+
+
+lambda1SEs <- as.tibble(lambda1SEs)
+lambda1SEs <-
+  lambda1SEs %>%
+  gather(run, lambda1SE, V1:V1000) 
+
+lambdas <- merge(lambdaMins, lambda1SEs, by = "run")
+```
+
+#### Summarise results of cross-validation 
+```{r}
+lambdas %>%
+  ggplot(mapping = aes(x = "", y = lambdaMin)) +
+  geom_boxplot() +
+  coord_flip() +
+  labs(
+    x = ""
   )
-summary(sym_fp_ctc_prop)
 
-std_beta(sym_fp_ctc_prop)
+lambdas %>%
+  ggplot(mapping = aes(x = "", y = lambda1SE)) +
+  geom_boxplot() +
+  coord_flip() +
+  labs(
+    x = ""
+  )
 
-r_chg_fp_ctcprop <- summary(sym_fp_ctc_prop)$adj.r.squared - r.squared_base
+lambdas_summary <-
+  lambdas %>%
+  summarise(
+    min_mean = mean(lambdaMin),
+    min_median = median(lambdaMin),
+    min_sd = sd(lambdaMin),
+    SE_mean = mean(lambda1SE),
+    SE_median = median(lambda1SE),
+    SE_sd = sd(lambda1SE)
+  )
+lambdas_summary
 
-r_chg_fp_ctcprop
+range(lambdas$lambdaMin)
+range(lambdas$lambda1SE)
+```
 
-confint(sym_fp_ctc_prop)
-
+### Print coeffs and plots for optimal lambda model
+```{r}
+coef(fit_net, s = lambdas_summary$min_median)
 ```
 
 ### Visualize EN
@@ -1434,11 +1681,10 @@ d0_d1_follow <-
 d0_d1_follow %>% 
   count(!is.na(percent_mother))
 
-
 d0_d1_follow %>%
   summarise_at(
     vars(percent_mother),
-    list(~mean, ~sd, ~min, ~max), na.rm = TRUE
+    funs(mean, sd, min, max), na.rm = TRUE
   )
 
 d0_d1_follow %>% 
@@ -1530,6 +1776,6 @@ t.test(d0_d1_follow$ctc_prop ~ d0_d1_follow$grandparent_present)
 ```
 
 ```{r}
-write_csv(d0_d1, "~/Desktop/BABIES/lena_symptoms/data_final/king_caregivinginput_itsea_20191105.csv")
+write_csv(d0_d1, "~/Desktop/BABIES/lena_symptoms/data_final/king_caregivinginput_itsea_20191119.csv")
 ```
 

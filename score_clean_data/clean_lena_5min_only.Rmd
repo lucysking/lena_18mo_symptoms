@@ -1,5 +1,6 @@
 ---
 title: "Clean LENA 5-minute data"
+author: "Lucy King & Fran Querdasi"
 output: html_notebook
 ---
 
@@ -547,6 +548,7 @@ lena_time_day <-
     ctc_depend_time_day = sum(CTC.Actual >= 1),
     awc_depend_time_day = sum(AWC.Actual >= 1),
   ) %>% 
+  ungroup() %>% 
   filter(!is.na(time_day)) %>% 
   group_by(ID) %>% 
   mutate(

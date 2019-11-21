@@ -943,9 +943,6 @@ q_18month_scored <-
     baby_age_18month = (baby_dob %--% survey_date) / months(1),
     baby_age_18month_int = as.integer(baby_age_18month)
   ) 
-
-glimpse(q_18month_scored)
-
 write_csv(q_18month_scored, "~/Desktop/BABIES/lena_symptoms/data_final/q_18month_scores_20190726.csv")
 ```
 
