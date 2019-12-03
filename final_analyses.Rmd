@@ -57,13 +57,6 @@ theme_lena <-
 # Display options
 options(scipen = 999)
 
-d0_d1 %>% 
-  count(is.na(cesd18_total), is.na(itsea_symptoms))
-
-d0_d1 %>% 
-  filter(is.na(cesd18_total), !is.na(itsea_symptoms)) %>% 
-  pull(ID)
-
 ```
 
 # Read in and join data
@@ -265,13 +258,13 @@ pwr.f2.test(u = 1, v = 69, f2 = .20, sig.level = .008)
 ```{r}
 d0_d1 %>% 
   select(ibq_64:ibq_72) %>% 
-  alpha(check.keys = TRUE)
+  psych::alpha(check.keys = TRUE)
 ```
 
 ```{r}
 d0_d1 %>% 
   select(itsea_a2:itsea_b85, -itsea_c2) %>% 
-  alpha()
+  psych::alpha()
 ```
 
 ```{r}
@@ -298,7 +291,7 @@ d0_d1 %>%
     cesd6_19,
     cesd6_20
   ) %>% 
-  alpha()
+  psych::alpha()
 ```
 
 ```{r}
@@ -325,7 +318,7 @@ d0_d1 %>%
     cesd18_19,
     cesd18_20
   ) %>% 
-  alpha()
+  psych::alpha()
 ```
 
 ```{r}
@@ -1605,15 +1598,19 @@ d_predictor <-
 
 ggplot(data = d_predictor, aes(x = lambda, y = coeff, color = predictor, fill = predictor)) +
   geom_point() +
-  geom_smooth(method = "loess", se = FALSE, size = .5) +
+  geom_line(size = 1) +
   theme_bw() +
   theme(
     text = element_text(size = 20),
     legend.position = "none"
   ) + 
   geom_dl(aes(label = predictor), method = list("first.qp", cex = 1)) +
-  xlim(-5, max(d_predictor$lambda)) +
-  ylim(-.3, .2)
+  xlim(-7, max(d_predictor$lambda)) +
+  ylim(-.3, .2) +
+  labs(
+    x = "λ (penalty for model complexity)",
+    y = "Association with\nsymptoms of psychopathology"
+  )
 
 ggsave(
   "~/Desktop/BABIES/lena_symptoms/manuscript/en_lambda.png",
