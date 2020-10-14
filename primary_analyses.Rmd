@@ -1,11 +1,15 @@
 ---
-title: "Association of linguistic input at age 6 months and symptoms of psychopathology at age 18 months"
-author: "Lucy King"
-output: html_document
+title: "Analyses for _Dimensions of the language environment in infancy and emerging psychopathology in toddlerhood_"
+author: "Lucy S. King"
+date: "2020"
+output: 
+  html_notebook:
+    toc: true
+    toc_depth: 2
 ---
 
 # Environment
-```{r setup, include=FALSE}
+```{r setup}
 # Libraries
 library(tidyverse)
 library(lubridate)
@@ -22,23 +26,25 @@ library(broom)
 library(ggfortify)
 library(relaimpo)
 library(olsrr)
+library(parameters)
+library(BayesFactor)
 
 # Files 
 home <- "~/Box/Mooddata_Coordinating/BABIES/Data/final_scored_data/"
 
-eligible_id_file <- "~/Box/lucy_king_files/BABIES/lena_symptoms/inclusion_tracker.xlsx"
+eligible_id_file <- "~/Box/lucy_king_files/BABIES/lena_symptoms/inclusion_tracker_sub2.xlsx"
+lena_edited_file <- "~/Box/lucy_king_files/BABIES/lena_symptoms/included_recording_dates.csv"
 fp_intervention_id <- paste0(home, "lab_caregiving_behavior/free_play_intervention_assignment.csv")
-itsea_file <- paste0(home, "survey_18month/itsea_scored_20200414.csv")
+itsea_file <- paste0(home, "survey_18month/itsea_scored_20201001.csv")
 demographics_file <- paste0(home, "demographics/demo_6mo_cleaned_final.csv")
 lena_file <- paste0(home, "LENA/lena_final_wf_day1_20200208_upto9months.csv")
 ibq_file <- paste0(home, "IBQ/ibq_scored_final.csv")
 sfp_care_file <- paste0(home, "lab_caregiving_behavior/PCIRS_sfp_wf_complete.csv")
 fp_care_file <- paste0(home, "lab_caregiving_behavior/free_play_wf_8min_20200507.csv")
-cesd_file <- paste0(home, "CESD/cesd_wf_20200507.csv")
+cesd_file <- paste0(home, "CESD/cesd_wf_20201001.csv")
 
 # Functions
 source("identify_outliers_histogram.R")
-source("winsorize.R")
 
 theme_lena <-
   theme_minimal() +
@@ -54,18 +60,25 @@ theme_lena <-
 
 # Display options
 options(scipen = 999)
-
 ```
 
 
 # Read in and join data
 ```{r}
 d0 <-
-  readxl::read_xlsx(eligible_id_file, sheet = "data_filtered_eligible") %>% 
+  readxl::read_xlsx(eligible_id_file, sheet = "data_filtered_T3") %>% 
   dplyr::select(
     ID,
     eligible,
     included
+  ) %>% 
+  filter(included == 1) %>% 
+  left_join(
+    read_csv(lena_edited_file) %>% 
+      dplyr::select(
+        ID, LENA_edited
+      ),
+    by = "ID"
   ) %>% 
   left_join(
     read_csv(demographics_file) %>% 
@@ -194,69 +207,61 @@ d0 <-
 
 # Retention / Missing data
 
-Dyads who completed the 6-month assessment (either lab or home observation), were eligible for the 18-month assesment, and completed the 18-month assessment are included in the current analyses. 
+Dyads who completed the 6-month assessment (either lab or home observation), were eligible for the 18-month assessment (i.e., were age 18 months by the time of analysis), and completed the 18-month assessment are included in the current analyses. 
 
 ```{r}
-#filter to only include those with 18-month symptoms
-d0_d1 <-
-  d0 %>% 
-  filter(
-    !is.na(itsea_symptoms)
-  ) 
-
-##missing LENA
-d0_d1 %>% 
-  count(is.na(ctc_hour_max))
-
-# filter to only include those with LENA
-d0_d1 <-
-  d0_d1 %>% 
-  filter(!is.na(ctc_hour_max))
-
 #missing SFP
-d0_d1 %>% 
+d0 %>% 
   count(is.na(sens_sfp))
 
 #missing FP
-d0_d1 %>% 
+d0 %>% 
   count(is.na(sens_fp))
 
 #missing IBQ
-d0_d1 %>% 
+d0 %>% 
   count(is.na(NEG))
+
+d0 %>% 
+  dplyr::select(
+    awc_prop, 
+    ctc_prop,
+    awc_hour_max,
+    ctc_hour_max,
+    sens_r_sfp,
+    sens_fp,
+    NEG,
+  ) %>% 
+  pair_n()
 ```
 
 # Descriptive statistics 
 
-```{r}
-### dyads in FP intervention
-d0_d1 %>% 
-  count(group)
-```
-
-
-## IBQ, ITSEA, CESD reliability
+## IBQ, ITSEA reliability
 
 ```{r}
-d0_d1 %>% 
+d0 %>% 
   dplyr::select(ibq_64:ibq_72) %>% 
   psych::alpha(check.keys = TRUE)
 ```
 
 ```{r}
-d0_d1 %>% 
+d0 %>% 
   dplyr::select(itsea_a2:itsea_b85, -itsea_c2) %>% 
   psych::alpha()
 ```
 
 ```{r}
-d0_d1 %>% 
+d0 %>% 
   summarize_at(
     vars(
       age_18mo,
       age_lena_d1,
       NEG,
-      duration,
+      duration_total,
+      duration_analyzed,
+      ct_first_time,
+      ct_last_time,
       cvc_hour_max,
       ctc_hour_max,
       awc_hour_max,
@@ -274,131 +279,113 @@ d0_d1 %>%
     ), 
     funs(mean, sd, min, max), na.rm = TRUE
   )
+
 ```
-Race:
-1, American Indian or Alaska Native
-2, Asian
-3, Black or African American
-4, Native Hawaiian or Other Pacific Islander
-5, White
-6, Other
-
-Education:
-0, No schooling completed
-2, Nursery school to 8th grade
-3, Some high school, no diploma
-4, High school graduate, diploma or the equivalent (i.e. GED)
-5, Some college credit, no degree
-6, Trade/technical/vocational training
-7, Associate degree
-8, Bachelor's degree
-9, Graduate degree
-10, Other
-
-Income:
-1, $0-5,000
-2, $5,001-15,000
-3, $15,001-30,000
-4, $30,001-60,000
-5, $60,001-90,000
-6, $90,001-150,000
-7, Greater than $150,000
 ```{r}
-d0_d1 %>% 
+d0 %>% 
   count(male) %>% 
   mutate(
     per = n / sum(n)
   )
 
-d0_d1 %>% 
-  filter(!is.na(duration)) %>% 
-  count(duration >= 12) %>% 
-  mutate(
-    per = n / sum(n)
-  )
-
-d0_d1 %>% 
+d0 %>% 
   count(itsea_concern_ied) %>% 
   mutate(
     per = n / sum(n)
   )
 
-d0_d1 %>% 
+d0 %>% 
   count(income_needs < 1) %>% 
   mutate(
     per = n / sum(n)
   )
 
-d0_d1 %>% 
+d0 %>% 
   count(mom_latinx) %>% 
   mutate(
     per = n / sum(n)
   )
 
-d0_d1 %>% 
+d0 %>% 
   count(mom_race) %>% 
   mutate(
     per = n / sum(n)
   ) %>% 
   arrange(desc(n))
 
-d0_d1 %>% 
+d0 %>% 
   count(education_txt) %>% 
   mutate(
     per = n / sum(n)
   ) %>% 
   arrange(education_txt)
 
-d0_d1 %>% 
+d0 %>% 
   count(day_type) %>% 
   mutate(per = n / sum(n))
 
-d0_d1 %>% 
+d0 %>% 
   count(cesd_t3 >= 16) %>% 
   mutate(per = n / sum(n))
 
-d0_d1 %>% 
+d0 %>% 
   count(cesd_t4 >= 16) %>% 
   mutate(per = n / sum(n))
 
 ```
 
+```{r}
+d0 %>% 
+  count(lena_mornstart, lena_recordfull)
+
+d0 %>% 
+  filter(lena_mornstart == 0) %>% 
+  dplyr::select(
+    ID, 
+    lena_recordno, 
+    ct_first_time, 
+    ct_last_time, 
+    duration_total, 
+    duration_analyzed, 
+    lena_notes
+  )
+```
 
 ## Distributions 
 
 ```{r}
-d0_d1 %>% 
+d0 %>% 
   identify_outliers_hist(x = cvc_hour_max)
 
-d0_d1 %>% 
+d0 %>% 
   identify_outliers_hist(x = ctc_hour_max)
 
-d0_d1 %>% 
+d0 %>% 
   identify_outliers_hist(x = ctc_prop)
 
-d0_d1 %>% 
+d0 %>% 
   identify_outliers_hist(x = awc_hour_max)
 
-d0_d1 %>% 
+d0 %>% 
   identify_outliers_hist(x = awc_prop)
 
-d0_d1 %>% 
+d0 %>% 
   identify_outliers_hist(x = sens_r_sfp)
 
-d0_d1 %>% 
+d0 %>% 
   identify_outliers_hist(x = sens_fp)
 
-d0_d1 %>% 
+d0 %>% 
   identify_outliers_hist(x = itsea_symptoms)
 
-d0_d1 %>% 
+d0 %>% 
   identify_outliers_hist(x = cesd_t3)
 
-d0_d1 %>% 
+d0 %>% 
   identify_outliers_hist(x = cesd_t4)
 
 
-d0_d1 %>% 
+d0 %>% 
   ggplot(aes(percent_mother)) +
   geom_histogram() +
   theme_lena +
@@ -417,99 +404,146 @@ ggsave(
 ## Correlations
 
 ``` {r}
-corr_lena_plot <- 
-  d0_d1 %>%
+corr_lena <- 
+  d0 %>%
   dplyr::select(
     `AW consistency` = awc_prop,
     `CT consistency` = ctc_prop,
     `AW quantity` = awc_hour_max,
     `CT quantity` = ctc_hour_max,
-    `Infant vocalizations` = cvc_hour_max
+    `Infant vocalizations` = cvc_hour_max,
+    `Sensitivity to distress` = sens_r_sfp,
+    `Sensitivity during play` = sens_fp,
   ) %>% 
-  cor(use = "complete.obs", method = "pearson")
+  correlate(use = "pairwise.complete.obs", method = "pearson") %>% 
+  shave(upper = TRUE) %>% 
+  fashion()  
+```
 
-ggcorrplot(
-  corr_lena_plot, 
-  hc.order = FALSE, 
-  type = "upper", 
-  lab = TRUE,
-  ggtheme = theme_void,
-  legend.title = "Pearson\ncorrelation coefficient",
-  digits = 2
-  )
+```{r}
+corr_lena_plot <-
+  corr_lena %>% 
+  gather(variable, value, -rowname) %>% 
+  mutate(
+    variable = str_replace_all(variable, "\\.", " "),
+    rowname = as.character(rowname),
+    value_chr = as.character(value),
+    value_chr = case_when(
+      rowname == "CT consistency" & variable == "AW quantity" ~ ".23",
+      rowname == "AW quantity" & variable == "CT consistency" ~ NA_character_,
+      rowname == "Sensitivity to distress" & variable == "Sensitivity during play" ~ ".10",
+      rowname == "Sensitivity during play" & variable == "Sensitivity to distress" ~ NA_character_,
+      TRUE ~ value_chr
+    ),
+    value_num = as.numeric(value_chr)
+  ) 
+```
+
+```{r}
+corr_lena_plot %>% 
+  ggplot(aes(x = rowname, y = variable)) +
+  geom_tile(aes(fill = abs(value_num))) +
+  geom_text(
+    aes(label = value_chr), 
+    size = 4
+  ) +
+  scale_fill_gradient2(
+    low = "blue",
+    high = "red",
+    mid = "white",
+    na.value = "white",
+    midpoint = 0,
+    limit = c(-1, 1),
+    space = "Lab",
+    name = "Pearson correlation\ncoefficient"
+  ) +
+  theme_void() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      vjust = 1,
+      size = 12
+    ),
+    axis.text.y = element_text(
+      size = 12,
+      hjust = 1.1
+    )
+  ) 
 
 ggsave(
-  "~/Box/lucy_king_files/BABIES/lena_symptoms/manuscript/dev_science/plots/lena_corr_plot.png", 
+  "~/Box/lucy_king_files/BABIES/lena_symptoms/manuscript/dev_science/plots/lena_corr_plot.eps", 
+  dpi = 1000,
   height = 5, 
-  width = 5
+  width = 7
 )
 ```
 
 ```{r}
-cor.test(d0_d1$cesd_t3, d0_d1$awc_hour_max)
-cor.test(d0_d1$cesd_t3, d0_d1$awc_prop)
-cor.test(d0_d1$cesd_t3, d0_d1$ctc_hour_max)
-cor.test(d0_d1$cesd_t3, d0_d1$ctc_prop)
-cor.test(d0_d1$cesd_t3, d0_d1$cvc_hour_max)
-cor.test(d0_d1$cesd_t3, d0_d1$sens_r_sfp)
-cor.test(d0_d1$cesd_t3, d0_d1$sens_fp)
+cor.test(d0$cesd_t3, d0$awc_hour_max)
+cor.test(d0$cesd_t3, d0$awc_prop)
+cor.test(d0$cesd_t3, d0$ctc_hour_max)
+cor.test(d0$cesd_t3, d0$ctc_prop)
+cor.test(d0$cesd_t3, d0$cvc_hour_max)
+cor.test(d0$cesd_t3, d0$sens_r_sfp)
+cor.test(d0$cesd_t3, d0$sens_fp)
 
-cor.test(d0_d1$NEG, d0_d1$awc_hour_max)
-cor.test(d0_d1$NEG, d0_d1$awc_prop)
-cor.test(d0_d1$NEG, d0_d1$ctc_hour_max)
-cor.test(d0_d1$NEG, d0_d1$ctc_prop)
-cor.test(d0_d1$NEG, d0_d1$cvc_hour_max)
-cor.test(d0_d1$NEG, d0_d1$sens_r_sfp)
-cor.test(d0_d1$NEG, d0_d1$sens_fp)
+cor.test(d0$NEG, d0$awc_hour_max)
+cor.test(d0$NEG, d0$awc_prop)
+cor.test(d0$NEG, d0$ctc_hour_max)
+cor.test(d0$NEG, d0$ctc_prop)
+cor.test(d0$NEG, d0$cvc_hour_max)
+cor.test(d0$NEG, d0$sens_r_sfp)
+cor.test(d0$NEG, d0$sens_fp)
 ```
 
 ```{r}
-cor.test(d0_d1$awc_hour_max, d0_d1$sens_fp)
-cor.test(d0_d1$awc_hour_max, d0_d1$sens_r_sfp)
+cor.test(d0$awc_hour_max, d0$sens_fp)
+cor.test(d0$awc_hour_max, d0$sens_r_sfp)
 
-cor.test(d0_d1$ctc_hour_max, d0_d1$sens_fp)
-cor.test(d0_d1$ctc_hour_max, d0_d1$sens_r_sfp)
+cor.test(d0$ctc_hour_max, d0$sens_fp)
+cor.test(d0$ctc_hour_max, d0$sens_r_sfp)
 
-cor.test(d0_d1$awc_prop, d0_d1$sens_fp)
-cor.test(d0_d1$awc_prop, d0_d1$sens_r_sfp)
+cor.test(d0$awc_prop, d0$sens_fp)
+cor.test(d0$awc_prop, d0$sens_r_sfp)
 
-cor.test(d0_d1$ctc_prop, d0_d1$sens_fp)
-cor.test(d0_d1$ctc_prop, d0_d1$sens_r_sfp)
+cor.test(d0$ctc_prop, d0$sens_fp)
+cor.test(d0$ctc_prop, d0$sens_r_sfp)
 
-cor.test(d0_d1$cvc_hour_max, d0_d1$sens_fp)
-cor.test(d0_d1$cvc_hour_max, d0_d1$sens_r_sfp)
+cor.test(d0$cvc_hour_max, d0$sens_fp)
+cor.test(d0$cvc_hour_max, d0$sens_r_sfp)
 
-cor.test(d0_d1$sens_fp, d0_d1$sens_r_sfp)
+cor.test(d0$sens_fp, d0$sens_r_sfp)
 ```
 
 ## t-tests by bilingual status
 ```{r}
-t.test(d0_d1$awc_hour_max ~ d0_d1$secondlang)
+t.test(d0$awc_hour_max ~ d0$secondlang)
 
-t.test(d0_d1$ctc_hour_max ~ d0_d1$secondlang)
+t.test(d0$ctc_hour_max ~ d0$secondlang)
 
-t.test(d0_d1$ctc_prop ~ d0_d1$secondlang)
+t.test(d0$ctc_prop ~ d0$secondlang)
 
-t.test(d0_d1$awc_prop ~ d0_d1$secondlang)
+t.test(d0$awc_prop ~ d0$secondlang)
 
-t.test(d0_d1$itsea_symptoms ~ d0_d1$secondlang)
+t.test(d0$itsea_symptoms ~ d0$secondlang)
 ```
 
 ## t-tests by day type
 ```{r}
-t.test(d0_d1$awc_hour_max ~ d0_d1$day_type)
+t.test(d0$awc_hour_max ~ d0$day_type)
 
-t.test(d0_d1$ctc_hour_max ~ d0_d1$day_type)
+t.test(d0$ctc_hour_max ~ d0$day_type)
 
-t.test(d0_d1$ctc_prop ~ d0_d1$day_type)
+t.test(d0$ctc_prop ~ d0$day_type)
 
-t.test(d0_d1$awc_prop ~ d0_d1$day_type)
+t.test(d0$awc_prop ~ d0$day_type)
 ```
 
 
 ## Histograms
 ```{r}
-d0_d1 %>% 
+d0 %>% 
   dplyr::select(
     ctc_hour_max,
     awc_hour_max,
@@ -565,7 +599,7 @@ ggsave(
 ```
 
 ```{r}
-d0_d1 %>% 
+d0 %>% 
   ggplot(aes(itsea_symptoms)) +
   geom_histogram() +
   scale_x_continuous(breaks = seq.int(0, 3, .25)) +
@@ -580,7 +614,7 @@ ggsave(
 ```
 
 ```{r}
-d0_d1 %>% 
+d0 %>% 
   dplyr::select(
     Activity = itsea_activity,
     Aggression = itsea_agress,
@@ -608,7 +642,7 @@ ggsave(
 ```
 
 ```{r}
-d0_d1 %>% 
+d0 %>% 
   ggplot(aes(cesd_t3)) +
   geom_histogram() +
   scale_x_continuous(breaks = seq.int(0, 50, 5)) +
@@ -623,7 +657,7 @@ ggsave(
 ```
 
 ```{r}
-d0_d1 %>% 
+d0 %>% 
   ggplot(aes(cesd_t4)) +
   geom_histogram() +
   scale_x_continuous(breaks = seq.int(0, 50, 5)) +
@@ -644,8 +678,8 @@ ggsave(
 ### Effect code categorical variables
 
 ```{r}
-d0_d1 <-
-  d0_d1 %>% 
+d0 <-
+  d0 %>% 
   mutate(
     white = as.factor(
       if_else(
@@ -657,202 +691,277 @@ d0_d1 <-
     mom_latinx = as.factor(mom_latinx)
   )
 
-contrasts(d0_d1$male) <- c(-.5, .5)
-contrasts(d0_d1$white) <- c(-.5, .5)
-contrasts(d0_d1$mom_latinx) <- c(-.5, .5)
+contrasts(d0$male) <- c(-.5, .5)
+contrasts(d0$white) <- c(-.5, .5)
+contrasts(d0$mom_latinx) <- c(-.5, .5)
 ```
 
-## Step-wise regression using stepAIC (MASS package) with LENA variables and covariates
-
-### Fit initial linear regression
+### Formal model fitting
 ```{r}
-d0_d1_step <-
-  d0_d1 %>% 
-  dplyr::select(
-    ID, 
-    itsea_symptoms,
-    ctc_prop,
-    awc_prop,
-    ctc_hour_max,
-    awc_hour_max,
-    cvc_hour_max,
-    cesd_t4,
-    cesd_t3,
-    NEG,
-    age_lena_d1,
-    mom_age,
-    income_needs,
-    education,
-    white,
-    male,
-    mom_latinx
-  ) %>% 
-  na.omit() %>% 
-  rowid_to_column()
+d0_lm <-
+  d0 %>% 
+  filter(!is.na(NEG))
 ```
 
+
 ```{r}
-sym_lena <- 
+mod_0 <-
   lm(
-    scale(itsea_symptoms) ~ 
-      scale(ctc_prop) +
-      scale(awc_prop)  +
-      scale(ctc_hour_max) +
-      scale(awc_hour_max) +
-      scale(cvc_hour_max) +
-      scale(cesd_t4) +
-      scale(cesd_t3) +
-      scale(NEG) +
-      scale(age_lena_d1) +
-      scale(mom_age) +
-      scale(income_needs) +
-      scale(education) +
-      white +
-      male +
-      mom_latinx,
-    data = d0_d1_step 
+    scale(itsea_symptoms) ~
+      1,
+    data = d0_lm
   )
-summary(sym_lena)
-```
-
-### Model diagnostics
-http://www.sthda.com/english/articles/39-regression-model-diagnostics/161-linear-regression-assumptions-and-diagnostics-in-r-essentials/
-
-NOTE that numbers represent the row index number
-```{r}
-sym_lena.diag.metrics <- 
-  augment(sym_lena) %>% 
-  rowid_to_column()
-```
-
-When data points have high Cook’s distance scores and are to the upper or lower right of the leverage plot, they have leverage meaning they are influential to the regression results. The regression results will be altered if we exclude those cases. I have no such cases. 
-```{r}
-#outliers and high leverage
-plot(sym_lena, 5)
-plot(sym_lena, 4)
-```
-
-https://cran.r-project.org/web/packages/olsrr/vignettes/regression_diagnostics.html
-
-Variance inflation factors measure the inflation in the variances of the parameter estimates due to collinearities that exist among the predictors. It is a measure of how much the variance of the estimated regression coefficient βk is “inflated” by the existence of correlation among the predictor variables in the model. A VIF of 1 means that there is no correlation among the kth predictor and the remaining predictor variables, and hence the variance of βk is not inflated at all. The general rule of thumb is that VIFs exceeding 4 warrant further investigation, while VIFs exceeding 10 are signs of serious multicollinearity requiring correction.
-
-```{r}
-#collinearity
-ols_vif_tol(sym_lena)
-```
-
-### Fit stepwise regression (complete data)
-```{r}
-symp_lena_step <- stepAIC(sym_lena, direction = "both")
-summary(symp_lena_step)
-calc.relimp(symp_lena_step)
-confint(symp_lena_step)
 ```
 
 ```{r}
-confint_lena_step <- 
-  confint(symp_lena_step) %>% 
-  as.tibble() 
-
-tidy_symp_lena_step <- 
-  tidy(symp_lena_step) %>% 
-  rename(
-    Variable = term,
-    B = estimate,
-    SE = std.error,
-    t = statistic,
-    p = p.value
-  ) %>% 
-  mutate(
-    Variable = recode(
-      Variable,
-      "(Intercept)" = "(Intercept)",
-      "scale(awc_prop, scale = FALSE)" = "AW consistency",
-      "scale(cvc_hour_max, scale = FALSE)" = "Infant vocalizations",
-      "scale(cesd_t4, scale = FALSE)" = "Maternal depressive symptoms",
-      "scale(NEG, scale = FALSE)" = "Infant negative affectivity"  
-    )
-  ) %>% 
-  cbind(confint_lena_step)  %>% 
-  mutate_at(
-    vars(B:t, `2.5 %`, `97.5 %`),
-    round, 2
-  ) %>% 
-  mutate_at(
-    vars(p),
-    round, 3
-  ) %>% 
-  unite(col = "95% CI", `2.5 %`, `97.5 %`, sep = ",") %>% 
-  dplyr::select(
-    Variable, 
-    B, 
-    everything()
-  ) 
-
-write.table(
-  tidy_symp_lena_step, "~/Box/lucy_king_files/BABIES/lena_symptoms/manuscript/dev_science/stepwise_table",
-  row.names = FALSE,
-  quote = FALSE,
-  sep = ","
-)
-```
-
-### Fit stepwise regression (excluding higher leverage cases)
-```{r}
-d0_d1_step_diag <-
-  d0_d1 %>% 
-  filter(ID != 50, ID != 1027, ID != 1037) %>% 
-  dplyr::select(
-    ID, 
-    itsea_symptoms,
-    ctc_prop,
-    awc_prop,
-    ctc_hour_max,
-    awc_hour_max,
-    cvc_hour_max,
-    cesd_t4,
-    cesd_t3,
-    NEG,
-    age_lena_d1,
-    mom_age,
-    income_needs,
-    education,
-    white,
-    male,
-    mom_latinx
-  ) %>% 
-  na.omit()
-```
-
-```{r}
-sym_lena_diag <- 
+mod_cesdt3 <-
   lm(
-    scale(itsea_symptoms) ~ 
-      scale(ctc_prop) +
-      scale(awc_prop)  +
-      scale(ctc_hour_max) +
-      scale(awc_hour_max) +
-      scale(cvc_hour_max) +
-      scale(cesd_t4) +
-      scale(cesd_t3) +
-      scale(NEG) +
-      scale(age_lena_d1) +
-      scale(mom_age) +
-      scale(income_needs) +
-      scale(education) +
-      white +
-      male +
-      mom_latinx,
-    data = d0_d1_step_diag 
+    scale(itsea_symptoms) ~
+      scale(cesd_t3),
+    data = d0_lm
   )
-summary(sym_lena_diag)
+
+anova(mod_0, mod_cesdt3)
 ```
 
 ```{r}
-sym_lena_diag_step <- stepAIC(sym_lena_diag, direction = "both")
-summary(sym_lena_diag_step)
-calc.relimp(sym_lena_diag_step)
-confint(sym_lena_diag_step)
+mod_cesdt4 <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(cesd_t4),
+    data = d0_lm
+  )
+
+anova(mod_0, mod_cesdt4)
+```
+
+```{r}
+mod_neg <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(cesd_t4) +
+      scale(NEG),
+    data = d0_lm
+  )
+
+anova(mod_cesdt4, mod_neg)
+model_parameters(mod_neg)
+calc.relimp(mod_neg)
+```
+
+```{r}
+mod_Bage <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      scale(age_lena_d1),
+    data = d0_lm
+  )
+
+anova(mod_neg, mod_Bage)
+```
+
+```{r}
+mod_Mage <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      scale(mom_age),
+    data = d0_lm
+  )
+
+anova(mod_neg, mod_Mage)
+```
+
+```{r}
+mod_race <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      white, 
+    data = d0_lm
+  )
+
+anova(mod_neg, mod_race)
+```
+
+```{r}
+mod_ethnicity <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      mom_latinx, 
+    data = d0_lm
+  )
+
+anova(mod_neg, mod_ethnicity)
+```
+
+```{r}
+mod_education <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      scale(education),
+    data = d0_lm
+  )
+
+anova(mod_neg, mod_education)
+```
+
+```{r}
+mod_income_needs <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      scale(income_needs), 
+    data = d0_lm
+  )
+
+anova(mod_neg, mod_income_needs)
+```
+
+
+```{r}
+mod_sex <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      male, 
+    data = d0_lm
+  )
+
+anova(mod_neg, mod_sex)
+```
+
+
+
+### Consistency
+
+#### AW
+```{r}
+mod_awprop <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      scale(awc_prop),
+    data = d0_lm
+  )
+
+model_parameters(mod_awprop)
+calc.relimp(mod_awprop)
+```
+
+#### CT
+```{r}
+mod_ctprop <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      scale(ctc_prop),
+    data = d0_lm
+  )
+
+model_parameters(mod_ctprop)
+calc.relimp(mod_ctprop)
+```
+
+### Quantity
+
+#### AW
+```{r}
+mod_awmax<-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      scale(awc_hour_max),
+    data = d0_lm
+  )
+
+model_parameters(mod_awmax)
+calc.relimp(mod_awmax)
+```
+#### CT
+```{r}
+mod_ctmax <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      scale(ctc_hour_max),
+    data = d0_lm
+  )
+
+model_parameters(mod_ctmax)
+calc.relimp(mod_ctmax)
+```
+
+### Infant vocalizations
+```{r}
+mod_cvmax <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      scale(cvc_hour_max),
+    data = d0_lm
+  )
+
+model_parameters(mod_cvmax)
+calc.relimp(mod_cvmax)
+```
+
+### Bayes Factors
+```{r}
+model_d <-
+  d0_lm %>% 
+  dplyr::select(
+    awc_prop,
+    ctc_prop,
+    awc_hour_max,
+    ctc_hour_max,
+    cvc_hour_max,
+    itsea_symptoms,
+    NEG,
+    cesd_t4
+  ) %>% 
+  as.data.frame()
+
+# each measure is compared to a covariate only model
+lmBF_covonly = lmBF(itsea_symptoms ~ NEG + cesd_t4, data = model_d)
+
+lmBF_awcprop = lmBF(itsea_symptoms ~ awc_prop + cesd_t4 + NEG, data = model_d)
+lmBF_ctcprop = lmBF(itsea_symptoms ~ ctc_prop + cesd_t4 + NEG, data = model_d)
+
+lmBF_awcmax = lmBF(itsea_symptoms ~ awc_hour_max + cesd_t4 + NEG, data = model_d)
+lmBF_ctcmax = lmBF(itsea_symptoms ~ ctc_hour_max + cesd_t4 + NEG, data = model_d)
+
+mBF_cvcmax = lmBF(itsea_symptoms ~ cvc_hour_max + cesd_t4 + NEG, data = model_d)
+
+# BF for AW consistency
+lmBF_awcprop / lmBF_covonly
+
+# BF for CT consistency
+lmBF_ctcprop / lmBF_covonly
+
+# BF for AW quantity
+lmBF_awcmax / lmBF_covonly
+
+# BF for CT quantity
+lmBF_ctcmax / lmBF_covonly
+
+# BF for infant vocalizations
+mBF_cvcmax / lmBF_covonly
 ```
 
 ### Create residualized symptoms variable for covariates in best fitting model
@@ -861,19 +970,19 @@ best_cov <- lm(
   itsea_symptoms ~
     scale(cesd_t4, scale = FALSE) +
     scale(NEG, scale = FALSE),
-  data = d0_d1
+  data = d0
 )
 
-d0_d1 <-
-  d0_d1 %>% 
+d0 <-
+  d0 %>% 
   add_residuals(best_cov, var = "resid_symptoms")
 ```
 
-### Plot associations 
+## Plot associations 
 
 ### AW consistency
 ```{r}
-d0_d1 %>% 
+d0 %>% 
   ggplot(aes(awc_prop, resid_symptoms)) +
   geom_point(size = 4, alpha = 1/2) +
   geom_smooth(method = "lm", size = 3, color = "black") +
@@ -901,10 +1010,78 @@ ggsave(
   height = 6
 )
 ```
-
-### Infant vocalizations
+### CT consistency
 ```{r}
-d0_d1 %>% 
+d0 %>% 
+  ggplot(aes(ctc_prop, resid_symptoms)) +
+  geom_point(size = 4, alpha = 1/2) +
+  geom_smooth(method = "lm", size = 3, color = "black") +
+  scale_x_continuous(
+    breaks = seq.int(0, 1, .10),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 17),
+    panel.grid = element_blank(),
+    plot.title = element_text(size = 18, hjust = .5),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.position = "none"
+  ) +
+  labs(
+    x = "Consistency of conversational turns in daily life",
+    y = "Toddler symptoms of psychopathology\n(residuals)"
+  )
+
+ggsave(
+  "~/Box/lucy_king_files/BABIES/lena_symptoms/manuscript/dev_science/plots/ctc_prop_symptoms.png",
+  width = 7,
+  height = 6
+)
+```
+### Consistency 
+```{r}
+d0 %>% 
+  dplyr::select(ctc_prop, awc_prop, resid_symptoms) %>% 
+  rename(
+    `CT consistency` = ctc_prop,
+    `AW consistency` = awc_prop
+  ) %>% 
+  gather(measure, value, -resid_symptoms) %>% 
+  ggplot(aes(value, resid_symptoms)) +
+  geom_point(size = 4, alpha = 1/2) +
+  geom_smooth(method = "lm", size = 3, color = "black") +
+  scale_x_continuous(
+    breaks = seq.int(0, 1, .15),
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 17),
+    panel.grid = element_blank(),
+    plot.title = element_text(size = 18, hjust = .5),
+    axis.title = element_text(size = 18),
+    axis.text = element_text(size = 16),
+    legend.position = "none"
+  ) +
+  labs(
+    x = "Consistency of language input in daily life",
+    y = "Toddler symptoms of psychopathology\n(residuals)"
+  ) +
+  facet_grid(.~measure, scales = "free")
+
+ggsave(
+  "~/Box/lucy_king_files/BABIES/lena_symptoms/manuscript/dev_science/plots/ctc_awc_prop_symptoms.eps",
+  width = 10,
+  height = 6,
+  dpi = 1000
+)
+```
+
+## Infant vocalizations
+```{r}
+d0 %>% 
   ggplot(aes(cvc_hour_max, resid_symptoms)) +
   geom_point(size = 4, alpha = 1/2) +
   geom_smooth(method = "lm", size = 3, color = "black") +
@@ -945,7 +1122,7 @@ z_score <- function(x) {
 
 ```{r}
 d0_en <-
-  d0_d1 %>% 
+  d0 %>% 
   dplyr::select(
     itsea_symptoms,
     ctc_prop,
@@ -954,27 +1131,11 @@ d0_en <-
     awc_hour_max,
     cvc_hour_max,
     cesd_t4,
-    cesd_t3,
-    NEG,
-    age_lena_d1,
-    mom_age,
-    income_needs,
-    education,
-    white,
-    male,
-    mom_latinx
+    NEG
   ) %>% 
   mutate_at(
-    vars(itsea_symptoms:education),
+    vars(itsea_symptoms:NEG),
     funs(z_score)
-  ) %>% 
-  mutate_at(
-    vars(white:mom_latinx),
-    funs(as.numeric)
-  ) %>% 
-  mutate_at(
-    vars(white, male, mom_latinx),
-    funs(. %>% dplyr::recode("2" = 1, "1" = 0))
   ) %>% 
   na.omit()
 ```
@@ -1011,7 +1172,7 @@ for (i in 1:100) {
     type.measure = "mse", 
     family = "gaussian", 
     alpha = .5,
-    nfolds = 91,
+    nfolds = 96,
     grouped = FALSE
   )
   lambdaMins <- cbind(lambdaMins, fit_cv$lambda.min)
@@ -1047,12 +1208,10 @@ en_coef_tbl <-
       "(Intercept)" = "(Intercept)",
       "ctc_prop" = "CT consistency",
       "awc_prop" = "AW consistency",
+      "ctc_hour_max" = "CT quantity",
       "cvc_hour_max" = "Infant vocalizations",
       "cesd_t4" = "Maternal depressive symptoms",
-      "NEG" = "Infant negative affectivity"  ,
-      "age_lena_d1" = "Infant age",
-      "mom_age" = "Maternal age",
-      "mom_latinx" = "Latinx ethnicity"
+      "NEG" = "Infant negative affectivity"
     )
   ) %>% 
   mutate_at(vars(`Elastic net estimate`) , round, 2)
@@ -1064,7 +1223,7 @@ en_coef_tbl <-
 X <- model.matrix(itsea_symptoms ~ ., d0_en)
 
 # get predicted values
-y_hat <- matrix(X, ncol = 16) %*% as.matrix(coefs)
+y_hat <- matrix(X, ncol = 8) %*% as.matrix(coefs)
 
 # calculate R-squared
 r_sq <- 1 - (sum((y_hat[, 1] - symptoms)^2) / sum((symptoms - mean(symptoms))^2))
@@ -1081,30 +1240,52 @@ for (i in 1000) {
 
 ## Additional analyses
 
-### Covarying maternal sensitivity in best fitting model
+### Covarying maternal sensitivity 
+
+#### AW 
 ```{r}
-sym_lena_ms <- 
+sym_aw_ms <- 
   lm(
     scale(itsea_symptoms) ~ 
       scale(awc_prop) + 
-      scale(cvc_hour_max) +
       scale(cesd_t4) +
       scale(NEG) +
       scale(sens_fp) +
       scale(sens_r_sfp),
-    data = d0_d1 
+    data = d0 
   )
 
-summary(sym_lena_ms)
-calc.relimp(sym_lena_ms)
-confint(sym_lena_ms)
+
+calc.relimp(sym_aw_ms)
+model_parameters(sym_aw_ms)
 ```
 
-## Who is talking?
+```{r}
+sym_ct_ms <- 
+  lm(
+    scale(itsea_symptoms) ~ 
+      scale(ctc_prop) +
+      scale(cesd_t4) +
+      scale(NEG) +
+      scale(sens_fp) +
+      scale(sens_r_sfp),
+    data = d0 
+  )
+
+calc.relimp(sym_ct_ms)
+model_parameters(sym_ct_ms)
+```
 
 ```{r}
-d0_d1_follow <-
-  d0_d1 %>% 
+cor.test(d0$sens_fp, d0$itsea_symptoms)
+cor.test(d0$sens_r_sfp, d0$itsea_symptoms)
+```
+
+### Who is talking?
+
+```{r}
+d0_follow <-
+  d0 %>% 
   filter(
     lena_caregivers___1 != 0 |
       lena_caregivers___2 != 0 |
@@ -1132,69 +1313,74 @@ d0_d1_follow <-
 ```
 
 ```{r}
-d0_d1_follow %>% 
+d0_follow %>% 
   count(!is.na(percent_mother))
 
-d0_d1_follow %>%
+d0_follow %>%
   summarise_at(
     vars(percent_mother),
     funs(mean, median, sd, min, max), na.rm = TRUE
   )
 
-cor.test(d0_d1_follow$percent_mother, d0_d1_follow$awc_prop, method = "spearman")
-cor.test(d0_d1_follow$percent_mother, d0_d1_follow$cvc_hour_max, method = "spearman")
+cor.test(d0_follow$percent_mother, d0_follow$ctc_prop, method = "spearman")
+cor.test(d0_follow$percent_mother, d0_follow$awc_prop, method = "spearman")
+cor.test(d0_follow$percent_mother, d0_follow$ctc_hour_max, method = "spearman")
+cor.test(d0_follow$percent_mother, d0_follow$awc_hour_max, method = "spearman")
+cor.test(d0_follow$percent_mother, d0_follow$cvc_hour_max, method = "spearman")
+
+cor.test(d0_follow$percent_mother, d0_follow$itsea_symptoms, method = "spearman")
 ```
 
 ```{r}
-d0_d1_follow %>%
+d0_follow %>%
   count(mom_present) %>% 
   mutate(
     per = n / sum(n)
   )
 
-d0_d1_follow %>%
+d0_follow %>%
   count(dad_present) %>% 
   mutate(
     per = n / sum(n)
   )
 
-d0_d1_follow %>%
+d0_follow %>%
   count(mom_present, dad_present) %>% 
   mutate(
     per = n / sum(n)
   )
 
-d0_d1_follow %>%
+d0_follow %>%
   count(daycare_present) %>% 
   mutate(
     per = n / sum(n)
   )
 
-d0_d1_follow %>%
+d0_follow %>%
   count(nanny_present) %>% 
   mutate(
     per = n / sum(n)
   )
 
-d0_d1_follow %>%
+d0_follow %>%
   count(grandparent_present) %>% 
   mutate(
     per = n / sum(n)
   )
 
-d0_d1_follow %>%
+d0_follow %>%
   count(friends_present) %>% 
   mutate(
     per = n / sum(n)
   )
 
-d0_d1_follow %>%
+d0_follow %>%
   count(relative_present) %>% 
   mutate(
     per = n / sum(n)
   )
 
-d0_d1_follow %>%
+d0_follow %>%
   count(
     mom_present, 
     dad_present, 
@@ -1210,14 +1396,15 @@ d0_d1_follow %>%
 ```
 
 ```{r}
-d0_d1_follow %>% 
-  count(percent_mother)
+d0_follow %>% 
+  count(percent_mother) %>% 
+  arrange(desc(n))
 ```
 
 
 ```{r}
-d0_d1_follow <-
-  d0_d1_follow %>% 
+d0_follow <-
+  d0_follow %>% 
   mutate(
     n_caregivers = 
       mom_present +
@@ -1225,15 +1412,83 @@ d0_d1_follow <-
       daycare_present +
       grandparent_present +
       nanny_present +
-      friends_present
+      friends_present +
+      relative_present
   )
 
-t.test(d0_d1_follow$ctc_prop ~ d0_d1_follow$dad_present)
-t.test(d0_d1_follow$ctc_prop ~ d0_d1_follow$grandparent_present)
+cor.test(d0_follow$itsea_symptoms, d0_follow$n_caregivers, method = "spearman")
+```
+
+### LENA recording correlations: duration, etc. 
+```{r}
+d0 %>% 
+  dplyr::select(
+    ctc_prop,
+    awc_prop,
+    ctc_hour_max,
+    awc_hour_max,
+    duration_analyzed,
+    duration_total,
+    ct_first_time,
+    ct_last_time
+  ) %>% 
+  correlate(method = "spearman") %>% 
+  fashion()
+
+cor.test(d0$ctc_prop, d0$duration_analyzed, method = "pearson")
+cor.test(d0$awc_prop, d0$duration_analyzed, method = "pearson")
+cor.test(d0$ctc_hour_max, d0$duration_analyzed, method = "pearson")
+cor.test(d0$awc_hour_max, d0$duration_analyzed, method = "pearson")
+
+cor.test(d0$ctc_prop, d0$ct_first_time, method = "pearson")
+cor.test(d0$awc_prop, d0$ct_first_time, method = "pearson")
+cor.test(d0$ctc_hour_max, d0$ct_first_time, method = "pearson")
+cor.test(d0$awc_hour_max, d0$ct_first_time, method = "pearson")
+
+cor.test(d0$ctc_prop, d0$ct_last_time, method = "pearson")
+cor.test(d0$awc_prop, d0$ct_last_time, method = "pearson")
+cor.test(d0$ctc_hour_max, d0$ct_last_time, method = "pearson")
+cor.test(d0$awc_hour_max, d0$ct_last_time, method = "pearson")
+
+cor.test(d0$ct_last_time, d0$ct_first_time, method = "pearson")
 ```
 
 
+
 ```{r}
-#write_csv(d0_d1, "~/Box/lucy_king_files/BABIES/lena_symptoms/manuscript/dev_science/king_analyzed_data_20200528.csv")
+d0 %>% 
+  ggplot(aes(duration_analyzed, awc_prop)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+d0 %>% 
+  ggplot(aes(ct_first_time, awc_hour_max)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+d0 %>% 
+  ggplot(aes(ct_first_time, ctc_hour_max)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+d0 %>% 
+  ggplot(aes(ct_last_time, awc_prop)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+d0 %>% 
+  ggplot(aes(ct_last_time, ctc_prop)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+### CT and AW rate variables and symptoms
+```{r}
+cor.test(d0$ctc_rate, d0$itsea_symptoms)
+cor.test(d0$awc_rate, d0$itsea_symptoms)
+```
+
+```{r}
+write_csv(d0, "~/Box/lucy_king_files/BABIES/lena_symptoms/manuscript/dev_science/sub2/king_analyzed_data_20201013.csv")
 ```
 
