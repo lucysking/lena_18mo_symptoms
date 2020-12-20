@@ -1,15 +1,15 @@
 ---
-title: "Analyses for _Dimensions of the language environment in infancy and emerging psychopathology in toddlerhood_"
+title: "Analyses for _Dimensions of the language environment in infancy and symptoms of psychopathology in toddlerhood_"
 author: "Lucy S. King"
 date: "2020"
 output: 
-  html_notebook:
+  github_document:
     toc: true
     toc_depth: 2
 ---
 
 # Environment
-```{r setup}
+```{r}
 # Libraries
 library(tidyverse)
 library(lubridate)
@@ -28,6 +28,9 @@ library(relaimpo)
 library(olsrr)
 library(parameters)
 library(BayesFactor)
+library(codebook)
+library(labelled)
+
 
 # Files 
 home <- "~/Box/Mooddata_Coordinating/BABIES/Data/final_scored_data/"
@@ -88,6 +91,9 @@ d0 <-
         education,
         education_txt,
         annual_income_txt,
+        income_numeric = annual_income_num,
+        ppl_in_home_total = ppl_in_home_tot,
+        ppl_in_home_allchild,
         income_needs,
         male,
         mom_age,
@@ -205,6 +211,29 @@ d0 <-
   ) 
 ```
 
+# Calculate income-to-needs based on 200% of federal poverty line limits in 2017
+```{r}
+d0 <-
+  d0 %>% 
+  group_by(ID) %>% 
+  mutate(
+    # inr based on the federal poverty thresholds for number of people in household and number that are children
+    fpl_threshold = case_when(
+      ppl_in_home_total == 2 ~ 16493,
+      ppl_in_home_total == 3 ~ 19515,
+      ppl_in_home_total == 4 ~ 25094,
+      ppl_in_home_total == 5 ~ 29714,
+      ppl_in_home_total == 6 ~ 33618,
+      ppl_in_home_total == 7 ~ 38173,
+      ppl_in_home_total == 8 ~ 42684,
+      ppl_in_home_total >= 9 ~ 50681
+    ),
+    inr_fpl = income_numeric / fpl_threshold,
+    fpl_low_income = inr_fpl < 1
+  ) %>% 
+  ungroup()
+```
+
 # Retention / Missing data
 
 Dyads who completed the 6-month assessment (either lab or home observation), were eligible for the 18-month assessment (i.e., were age 18 months by the time of analysis), and completed the 18-month assessment are included in the current analyses. 
@@ -231,9 +260,12 @@ d0 %>%
     sens_r_sfp,
     sens_fp,
     NEG,
+    cesd_t4,
+    itsea_symptoms
   ) %>% 
   pair_n()
 ```
+
 
 # Descriptive statistics 
 
@@ -273,14 +305,15 @@ d0 %>%
       itsea_symptoms,
       mom_age,
       income_needs,
+      inr_fpl,
       percent_mother,
       cesd_t3,
       cesd_t4
     ), 
     funs(mean, sd, min, max), na.rm = TRUE
   )
-
 ```
+
 ```{r}
 d0 %>% 
   count(male) %>% 
@@ -296,6 +329,18 @@ d0 %>%
 
 d0 %>% 
   count(income_needs < 1) %>% 
+  mutate(
+    per = n / sum(n)
+  )
+
+d0 %>% 
+  count(inr_fpl < 1) %>% 
+  mutate(
+    per = n / sum(n)
+  )
+
+d0 %>% 
+  count(income_numeric <= 2 * fpl_threshold) %>% 
   mutate(
     per = n / sum(n)
   )
@@ -395,6 +440,44 @@ d0 %>%
 
 ggsave(
   "~/Box/lucy_king_files/BABIES/lena_symptoms/manuscript/percent_mom_hist.png",
+  width = 7,
+  height = 5
+)
+
+d0 %>% 
+  ggplot(aes(income_needs)) +
+  geom_histogram(binwidth = .5) +
+  geom_vline(
+    xintercept = 1,
+    color = "red"
+  ) +
+  scale_x_continuous(breaks = seq.int(0, 6, .5)) +
+  theme_lena +
+  labs(
+    x = "Income-to-needs ratio based on\n county-specifc HUD low-income limits"
+  )
+
+ggsave(
+  "~/Box/lucy_king_files/BABIES/lena_symptoms/manuscript/dev_science/plots/inr_HUD_hist.png",
+  width = 7,
+  height = 5
+)
+
+d0 %>% 
+  ggplot(aes(inr_fpl)) +
+  geom_histogram(binwidth = 1) +
+  geom_vline(
+    xintercept = 1,
+    color = "red"
+  ) +
+  scale_x_continuous(breaks = seq.int(0, 6, 1)) +
+  theme_lena +
+  labs(
+    x = "Income-to-needs ratio based on\n federal poverty line limits"
+  )
+
+ggsave(
+  "~/Box/lucy_king_files/BABIES/lena_symptoms/manuscript/dev_science/plots/inr_FPL_hist.png",
   width = 7,
   height = 5
 )
@@ -587,7 +670,7 @@ d0 %>%
     legend.position = "none"
   ) +
   labs(
-    x = "Caregiving input value"
+    x = "Value"
   )
 
 
@@ -826,7 +909,18 @@ mod_income_needs <-
 
 anova(mod_neg, mod_income_needs)
 ```
+```{r}
+mod_inr_fpl <-
+  lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      scale(inr_fpl), 
+    data = d0_lm
+  )
 
+anova(mod_neg, mod_inr_fpl)
+```
 
 ```{r}
 mod_sex <-
@@ -840,8 +934,18 @@ mod_sex <-
 
 anova(mod_neg, mod_sex)
 ```
+```{r}
+mod_duration <-
+    lm(
+    scale(itsea_symptoms) ~
+      scale(NEG) +
+      scale(cesd_t4) +
+      scale(duration_analyzed),
+    data = d0_lm
+  )
 
-
+anova(mod_neg, mod_duration)
+```
 
 ### Consistency
 
@@ -977,6 +1081,8 @@ d0 <-
   d0 %>% 
   add_residuals(best_cov, var = "resid_symptoms")
 ```
+
+
 
 ## Plot associations 
 
@@ -1151,7 +1257,7 @@ symptoms <- z_score(d0_en$itsea_symptoms)
 
 ### Run model over 100 increasingly relaxed lambda values
 ```{r}
-fit_net <- glmnet(predictors, symptoms, family = "gaussian")
+fit_net <- glmnet(predictors, symptoms, family = "gaussian", standardize = FALSE)
 plot(fit_net, label = TRUE)
 ```
 
@@ -1159,40 +1265,39 @@ plot(fit_net, label = TRUE)
 If nfolds is set to the sample size = leave-one-out CV
 https://sciphy-stats.com/post/2019-01-25-finalizing-glmnet-models/
 Running the CV 100 times to minimize simulation error. 
+
+```{r}
+k <- nrow(d0_en)
+```
+
 ```{r}
 # run cross validation
 set.seed(123)
 
-lambdaMins <- c()
-
-for (i in 1:100) {
-  fit_cv <- cv.glmnet(
+fit_cv <- cv.glmnet(
     predictors, 
     symptoms, 
     type.measure = "mse", 
     family = "gaussian", 
     alpha = .5,
-    nfolds = 96,
-    grouped = FALSE
+    nfolds = k,
+    grouped = FALSE,
+    standardized = FALSE
   )
-  lambdaMins <- cbind(lambdaMins, fit_cv$lambda.min)
-}
+
+lambda_optimal <- fit_cv$lambda.min
 ```
 
-```{r}
-# save lambda corresponding to minimal mse to a tibble
-lambdaMins <- as_tibble(lambdaMins)
-lambdaMins <-
-  lambdaMins %>%
-  gather(run, lambdaMin, V1:V100) 
-
-# calculate mean lambda value 
-lambdaFinal <- mean(lambdaMins$lambdaMin)
-```
 
 ### Print coefficients for model with optimal lambda 
 ```{r}
-fit_net_final <- glmnet(predictors, symptoms, family = "gaussian", alpha = .5, lambda = lambdaFinal)
+fit_net_final <- glmnet(
+  predictors, 
+  symptoms, 
+  family = "gaussian", 
+  alpha = .5, 
+  lambda = lambda_optimal
+)
 coefs <- coef(fit_net_final) 
 
 en_coef_tbl <- 
@@ -1216,6 +1321,15 @@ en_coef_tbl <-
   ) %>% 
   mutate_at(vars(`Elastic net estimate`) , round, 2)
 ```
+### Calculate zero-order effect sizes
+```{r}
+cor.test(d0_en$ctc_prop, d0_en$itsea_symptoms)
+cor.test(d0_en$awc_prop, d0_en$itsea_symptoms)
+cor.test(d0_en$ctc_hour_max, d0_en$itsea_symptoms)
+cor.test(d0_en$cvc_hour_max, d0_en$itsea_symptoms)
+cor.test(d0_en$cesd_t4, d0_en$itsea_symptoms)
+cor.test(d0_en$NEG, d0_en$itsea_symptoms)
+```
 
 ### Calculate EN model performance
 ```{r}
@@ -1227,15 +1341,6 @@ y_hat <- matrix(X, ncol = 8) %*% as.matrix(coefs)
 
 # calculate R-squared
 r_sq <- 1 - (sum((y_hat[, 1] - symptoms)^2) / sum((symptoms - mean(symptoms))^2))
-```
-
-### Evaluate model performance
-
-```{r}
-for (i in 1000) {
-  fit_rr_cv <- cv.glmnet(predictors, symptoms, type.measure = "mse", alpha = .5, family = "gaussian")
-  lambdaMins <- cbind(lambdaMins, fit_rr_cv$lambda.min)
-}
 ```
 
 ## Additional analyses
@@ -1259,7 +1364,7 @@ sym_aw_ms <-
 calc.relimp(sym_aw_ms)
 model_parameters(sym_aw_ms)
 ```
-
+#### CT
 ```{r}
 sym_ct_ms <- 
   lm(
@@ -1488,7 +1593,180 @@ cor.test(d0$ctc_rate, d0$itsea_symptoms)
 cor.test(d0$awc_rate, d0$itsea_symptoms)
 ```
 
+### Covary duration of recording
+
+#### AW
 ```{r}
-write_csv(d0, "~/Box/lucy_king_files/BABIES/lena_symptoms/manuscript/dev_science/sub2/king_analyzed_data_20201013.csv")
+sym_aw_duration <- 
+  lm(
+    scale(itsea_symptoms) ~ 
+      scale(awc_prop) + 
+      scale(cesd_t4) +
+      scale(NEG) +
+      scale(duration_analyzed),
+    data = d0 
+  )
+
+calc.relimp(sym_aw_duration)
+model_parameters(sym_aw_duration)
+```
+```{r}
+sym_ct_duration <- 
+  lm(
+    scale(itsea_symptoms) ~ 
+      scale(ctc_prop) + 
+      scale(cesd_t4) +
+      scale(NEG) +
+      scale(duration_analyzed),
+    data = d0 
+  )
+
+calc.relimp(sym_ct_duration)
+model_parameters(sym_ct_duration)
+```
+
+### SES and LENA measures
+```{r}
+# education
+cor.test(d0$ctc_hour_max, d0$education, method = "spearman")
+cor.test(d0$awc_hour_max, d0$education, method = "spearman")
+
+cor.test(d0$ctc_prop, d0$education, method = "spearman")
+cor.test(d0$awc_prop, d0$education, method = "spearman")
+
+# income (HUD ratio)
+cor.test(d0$ctc_hour_max, d0$income_needs)
+cor.test(d0$awc_hour_max, d0$income_needs)
+
+cor.test(d0$ctc_prop, d0$income_needs)
+cor.test(d0$awc_prop, d0$income_needs)
+
+# income (FPL ratio)
+cor.test(d0$ctc_hour_max, d0$inr_fpl)
+cor.test(d0$awc_hour_max, d0$inr_fpl)
+
+cor.test(d0$ctc_prop, d0$inr_fpl)
+cor.test(d0$awc_prop, d0$inr_fpl)
+```
+
+### Covary for SES
+
+#### AW 
+```{r}
+sym_aw_ses <- 
+  lm(
+    scale(itsea_symptoms) ~ 
+      scale(awc_prop) + 
+      scale(cesd_t4) +
+      scale(NEG) +
+      scale(income_needs) +
+      scale(education),
+    data = d0 
+  )
+
+calc.relimp(sym_aw_ses)
+model_parameters(sym_aw_ses)
+```
+
+#### CT
+```{r}
+sym_ct_ses <- 
+  lm(
+    scale(itsea_symptoms) ~ 
+      scale(ctc_prop) +
+      scale(cesd_t4) +
+      scale(NEG) +
+      scale(income_needs) +
+      scale(education),
+    data = d0 
+  )
+
+calc.relimp(sym_ct_ses)
+model_parameters(sym_ct_ses)
+```
+## Export data
+```{r}
+d0_share <-
+  d0 %>% 
+  dplyr::select(
+    ID,
+    male,
+    age_lena_d1,
+    age_18mo,
+    mom_age,
+    education,
+    education_txt,
+    annual_income_txt,
+    income_needs,
+    inr_fpl,
+    mom_race,
+    white,
+    mom_latinx,
+    secondlang,
+    day_type,
+    NEG,
+    cesd_t3,
+    cesd_t4,
+    duration_total,
+    duration_analyzed,
+    ct_first_time,
+    ct_last_time,
+    percent_mother,
+    ctc_prop,
+    awc_prop,
+    ctc_hour_max,
+    awc_hour_max,
+    cvc_hour_max,
+    ctc_rate,
+    awc_rate,
+    sens_sfp,
+    sens_fp,
+    itsea_symptoms,
+    itsea_concern_ied
+  )
+```
+
+```{r}
+var_label(d0_share) <- 
+  list(
+    male = "Infant sex",
+    age_lena_d1 = "Infant age at LENA assessment",
+    age_18mo = "Child age at toddler assessment",
+    mom_age = "Maternal age at infant assessment",
+    education = "Maternal education (ordinal)",
+    education_txt = "Maternal education (labeled)",
+    annual_income_txt = "Household annual income reported in bins",
+    income_needs = "Income-to-needs ratio based on 2017 HUD limits for SC county",
+    inr_fpl = "Income-to-needs ratio based on 2017 FPL",
+    mom_race = "Maternal self-reported race",
+    mom_latinx = "Maternal self-reported ethnicity",
+    secondlang = "Language additional to English spoken at home",
+    day_type = "Weekend or weekday for LENA recording",
+    NEG = "Infant negative affectivity on IBQ-R-SF",
+    cesd_t3 = "Maternal depressive symptoms at infant assessment",
+    cesd_t4 = "Maternal depressive symptoms at toddler assessment",
+    duration_total = "Total duration of LENA recording",
+    duration_analyzed = "Duration of portion of LENA recording analyzed",
+    ct_first_time = "Time of first CT of the recording day",
+    ct_last_time = "Time of last CT of the recording day",
+    percent_mother = "Percent of recording day with mother",
+    ctc_prop = "Consistency of conversational turns",
+    awc_prop = "Consistency of adult words",
+    ctc_hour_max = "Quantity of conversational turns",
+    awc_hour_max = "Quantity of adult words",
+    cvc_hour_max = "Quantity of infant vocalizations",
+    ctc_rate = "Hourly rate of conversational turns",
+    awc_rate = "Hourly rate of adult words",
+    sens_sfp = "Maternal sensitivity to distress",
+    sens_fp = "Maternal sensitivity during play",
+    itsea_symptoms = "Total symptoms on abbreviated ITSEA",
+    itsea_concern_ied = "Met cutoff for clinical concern for at least one symptom subscale"
+  )
+
+metadata(d0_share)$name <- "Analysed data for \"Dimensions of the language environment in infancy and symptoms of psychopathology in toddlerhood\" (King et al. 2020)"
+```
+
+```{r}
+#write_csv(d0_share, "~/Box/lucy_king_files/BABIES/lena_symptoms/manuscript/dev_science#/sub3/king_analyzed_data_20201220.csv")
 ```
 
