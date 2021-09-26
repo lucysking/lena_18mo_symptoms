@@ -1,5 +1,5 @@
 ---
-title: "Analyses for _Dimensions of the language environment in infancy and symptoms of psychopathology in toddlerhood_"
+title: "Analyses for _Dimensions of the language environment in infancy and symptoms of psychopathology in toddlerhood"
 author: "Lucy S. King"
 date: "2020"
 output: 
